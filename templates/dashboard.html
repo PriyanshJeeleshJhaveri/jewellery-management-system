@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📊 Dashboard</div>
+
+<div class="stats">
+    <div class="stat-card">💛 Gold Stock<br><span>{{ gold_weight }} g</span></div>
+    <div class="stat-card">🤍 Silver Stock<br><span>{{ silver_weight }} g</span></div>
+    <div class="stat-card">💎 Diamond Items<br><span>{{ diamond_count }}</span></div>
+</div>
+
+<div class="card">
+    <h3>📈 Quick Actions</h3>
+    <p>Use the sidebar to manage purchases, sales, stock, and reports.</p>
+</div>
+<div class="card">
+    <h3>🔎 Search Stock</h3>
+    <p>Find items by ID, item name, material, category, purity or date.</p>
+    <a href="/search" class="btn">Go to Search</a>
+</div>
+{% endblock %}

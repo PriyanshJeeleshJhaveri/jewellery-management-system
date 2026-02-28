@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📦 Current Stock</div>
+
+<div class="card">
+    {% if stock %}
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight (g)</th>
+            <th>Purity</th>
+            <th>Purchase Date</th>
+        </tr>
+
+        {% for s in stock %}
+        <tr>
+            <td>{{ s.ID }}</td>
+            <td>{{ s.ITEM }}</td>
+            <td>{{ s.MATERIAL }}</td>
+            <td>{{ s.CATEGORY }}</td>
+            <td>{{ s.WEIGHT }}</td>
+            <td>{{ s.PURITY }}</td>
+            <td>{{ s.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>No stock available.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <a href="/export_stock" class="btn">⬇ Export Stock</a>
+</div>
+
+{% endblock %}

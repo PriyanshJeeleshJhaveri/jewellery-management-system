@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">🔎 Search Stock</div>
+
+<div class="card">
+
+<form method="POST" class="search-form">
+
+    <label>Search By</label>
+    <select name="column" required>
+        <option value="">-- Select Column --</option>
+        <option value="ID">ID</option>
+        <option value="ITEM">Item</option>
+        <option value="MATERIAL">Material</option>
+        <option value="CATEGORY">Category</option>
+        <option value="PURITY">Purity</option>
+        <option value="PURCHASE_DATE">Date</option>
+    </select>
+
+    <label>Search Value</label>
+    <input type="text" name="value" placeholder="Enter value" required>
+
+    <button type="submit" class="btn">Search</button>
+</form>
+
+</div>
+
+{% if results %}
+<div class="card">
+<h3>📦 Search Results</h3>
+
+<table>
+<tr>
+    <th>ID</th>
+    <th>Item</th>
+    <th>Material</th>
+    <th>Category</th>
+    <th>Weight</th>
+    <th>Purity</th>
+    <th>Date</th>
+</tr>
+
+{% for r in results %}
+<tr>
+    <td>{{ r.ID }}</td>
+    <td>{{ r.ITEM }}</td>
+    <td>{{ r.MATERIAL }}</td>
+    <td>{{ r.CATEGORY }}</td>
+    <td>{{ r.WEIGHT }}</td>
+    <td>{{ r.PURITY }}</td>
+    <td>{{ r.PURCHASE_DATE }}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📊 Reports</div>
+
+<!-- REPORT FILTER -->
+<div class="card">
+    <form method="post" class="report-form">
+        <select name="type">
+            <option value="daily" {% if report_type=='daily' %}selected{% endif %}>Daily</option>
+            <option value="monthly" {% if report_type=='monthly' %}selected{% endif %}>Monthly</option>
+            <option value="yearly" {% if report_type=='yearly' %}selected{% endif %}>Yearly</option>
+        </select>
+        <button type="submit">View Report</button>
+    </form>
+</div>
+
+<!-- PURCHASE REPORT -->
+<div class="card">
+    <h3>📥 Purchase Report</h3>
+
+    {% if purchase %}
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight</th>
+            <th>Seller</th>
+            <th>Date</th>
+        </tr>
+        {% for p in purchase %}
+        <tr>
+            <td>{{ p.ITEM }}</td>
+            <td>{{ p.MATERIAL }}</td>
+            <td>{{ p.CATEGORY }}</td>
+            <td>{{ p.WEIGHT }}</td>
+            <td>{{ p.SELLER }}</td>
+            <td>{{ p.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>No purchase records found.</p>
+    {% endif %}
+</div>
+
+<!-- SALES REPORT -->
+<div class="card">
+    <h3>📤 Sales Report</h3>
+
+    {% if sales %}
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight</th>
+            <th>Buyer</th>
+            <th>Date</th>
+        </tr>
+        {% for s in sales %}
+        <tr>
+            <td>{{ s.ITEM }}</td>
+            <td>{{ s.MATERIAL }}</td>
+            <td>{{ s.CATEGORY }}</td>
+            <td>{{ s.WEIGHT }}</td>
+            <td>{{ s.BUYER }}</td>
+            <td>{{ s.SALE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>No sales records found.</p>
+    {% endif %}
+</div>
+
+<!-- EXPORT BUTTON -->
+<div class="card">
+    <a href="/export_report/{{ report_type }}" class="btn">
+        ⬇ Export {{ report_type|capitalize }} Report
+    </a>
+</div>
+
+{% endblock %}

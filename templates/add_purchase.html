@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>📥 Add New Purchase</h2>
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+
+<div class="form-card">
+    <form method="post" action="/add_purchase">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Item Name</label>
+                <input type="text" name="item" required>
+            </div>
+            <div class="form-group">
+                <label>Material</label>
+                <select name="material" required>
+                    <option value="GOLD">Gold</option>
+                    <option value="SILVER">Silver</option>
+                    <option value="DIAMOND">Diamond</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" required>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="CHILDREN">Children</option>
+                    <!-- FIX: "Utensil" had value="CHILDREN" before — now corrected -->
+                    <option value="UTENSIL">Utensil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Weight (g)</label>
+                <input type="number" step="0.001" name="weight" min="0.001" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Purity</label>
+                <input type="number" step="0.1" name="purity" min="0.1" max="999" required>
+            </div>
+            <div class="form-group">
+                <label>Seller Name</label>
+                <input type="text" name="seller" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Seller Phone</label>
+                <input type="tel" name="phone" pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <button type="submit">Record Purchase</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

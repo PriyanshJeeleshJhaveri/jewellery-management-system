@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📤 Record Sale</div>
+
+<div class="card">
+<form method="post">
+
+    <div class="form-grid">
+
+        <div>
+            <label>Stock ID</label>
+            <input type="number" name="stock_id" required placeholder="Enter Stock ID">
+        </div>
+
+        <div>
+            <label>Buyer Name</label>
+            <input type="text" name="buyer" required>
+        </div>
+
+        <div>
+            <label>Buyer Phone</label>
+            <input type="tel" name="phone" pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" required>
+        </div>
+
+    </div>
+
+    <button class="btn" type="submit">Record Sale</button>
+</form>
+</div>
+
+{% if message %}
+<div class="card success">
+    {{ message }}
+</div>
+{% endif %}
+
+{% endblock %}
