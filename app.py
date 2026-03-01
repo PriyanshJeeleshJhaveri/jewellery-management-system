@@ -4,8 +4,10 @@ import sqlite3
 import webbrowser
 import threading
 import os
+import subprocess
 from datetime import datetime, date
 from functools import wraps
+from invoice_generator import generate_invoice
 
 app = Flask(__name__)
 app.secret_key = "change-this-to-a-random-secret-key-before-deploying"  # FIX: Added secret key for sessions
@@ -201,16 +203,26 @@ def add_purchase():
 @login_required
 def record_sale():
     message = None
+    invoice_path = None
+
     if request.method == "POST":
-        # FIX: Validate stock_id is actually an integer before querying
+        # Validate stock_id
         try:
             stock_id = int(request.form["stock_id"])
         except (ValueError, KeyError):
             message = "Invalid Stock ID."
             return render_template("record_sale.html", message=message)
 
-        buyer = request.form.get("buyer", "").strip()
-        phone = request.form.get("phone", "").strip()
+        buyer  = request.form.get("buyer", "").strip()
+        phone  = request.form.get("phone", "").strip()
+        hsn    = request.form.get("hsn", "").strip()
+
+        try:
+            rate_per_gram   = float(request.form.get("rate_per_gram", 0))
+            making_charges  = float(request.form.get("making_charges", 0))
+        except ValueError:
+            message = "Rate and Making Charges must be valid numbers."
+            return render_template("record_sale.html", message=message)
 
         if not phone.isdigit() or len(phone) != 10:
             message = "Phone number must be exactly 10 digits."
@@ -220,15 +232,22 @@ def record_sale():
             message = "Buyer name is required."
             return render_template("record_sale.html", message=message)
 
+        if rate_per_gram <= 0:
+            message = "Rate per gram must be greater than 0."
+            return render_template("record_sale.html", message=message)
+
+        if not hsn:
+            message = "HSN/SAC Code is required."
+            return render_template("record_sale.html", message=message)
+
         sale_date = datetime.now().strftime("%Y-%m-%d")
         conn = get_db()
-        cur = conn.cursor()
-        item = cur.execute(
-            "SELECT * FROM stock WHERE ID=?", (stock_id,)
-        ).fetchone()
+        cur  = conn.cursor()
+        item = cur.execute("SELECT * FROM stock WHERE ID=?", (stock_id,)).fetchone()
 
         if not item:
             message = "Invalid Stock ID. No item found."
+            conn.close()
         else:
             cur.execute("""
                 INSERT INTO sale
@@ -240,11 +259,37 @@ def record_sale():
             ))
             cur.execute("DELETE FROM stock WHERE ID=?", (stock_id,))
             conn.commit()
-            message = f"Stock ID {stock_id} sold and removed from stock."
-        conn.close()
+
+            # Get the sale ID that was just inserted
+            new_sale_id = cur.lastrowid
+            conn.close()
+
+            # Generate PDF invoice
+            try:
+                invoice_path = generate_invoice(
+                    sale_id       = new_sale_id,
+                    item          = item["ITEM"],
+                    material      = item["MATERIAL"],
+                    category      = item["CATEGORY"],
+                    weight        = item["WEIGHT"],
+                    purity        = item["PURITY"],
+                    hsn_code      = hsn,
+                    rate_per_gram = rate_per_gram,
+                    making_charges= making_charges,
+                    buyer_name    = buyer,
+                    buyer_phone   = phone,
+                    sale_date     = datetime.now().strftime("%d-%m-%Y")
+                )
+                # Open the invoices folder automatically in Windows Explorer
+                invoice_folder = os.path.abspath("invoices")
+                subprocess.Popen(f'explorer "{invoice_folder}"')
+
+                message = f"Sale recorded. Invoice saved: {os.path.basename(invoice_path)}"
+
+            except Exception as e:
+                message = f"Sale recorded but invoice failed: {str(e)}"
 
     return render_template("record_sale.html", message=message)
-
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
 @login_required

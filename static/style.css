@@ -340,3 +340,12 @@ select, button {
 .btn-logout:hover {
     background: #c0392b;
 }
+/* ── Record Sale success message ── */
+.success {
+    background: #e6f9ee;
+    color: #1a7a3f;
+    border-left: 4px solid #1a7a3f;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+}
