@@ -12,12 +12,21 @@ import io
 import subprocess
 
 app = Flask(__name__)
-app.secret_key = "change-this-to-a-random-secret-key-before-deploying"  # FIX: Added secret key for sessions
+app.secret_key = "change-this-to-a-random-secret-key-before-deploying"
 
 DB_NAME = "jewellery.db"
 
+
+# ---------- NO CACHE ----------
+@app.after_request
+def no_cache(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 # ---------- DATABASE SETUP ----------
-# FIX: Moved DB init into a function instead of running at module level
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -58,7 +67,6 @@ def init_db():
             SALE_DATE TEXT NOT NULL
         )
     """)
-    # FIX: Added users table for authentication
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +74,6 @@ def init_db():
             PASSWORD TEXT NOT NULL
         )
     """)
-    # Insert a default admin user (password: admin123) — CHANGE THIS IMMEDIATELY
     hashed_password = generate_password_hash('admin123')
     cur.execute(
         "INSERT OR IGNORE INTO users (USERNAME, PASSWORD) VALUES (?, ?)",
@@ -75,14 +82,15 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 # ---------- DATABASE HELPER ----------
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
+
 # ---------- AUTH DECORATOR ----------
-# FIX: Added login_required so every route is protected
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -90,6 +98,7 @@ def login_required(f):
             return redirect("/login")
         return f(*args, **kwargs)
     return decorated
+
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -111,10 +120,14 @@ def login():
         else:
             error = "Invalid username or password"
     return render_template("login.html", error=error)
+
+
+# ---------- LOGOUT ----------
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
     return redirect("/login")
+
 
 # ---------- DASHBOARD ----------
 @app.route("/")
@@ -139,6 +152,7 @@ def dashboard():
         diamond_count=diamond
     )
 
+
 # ---------- VIEW STOCK ----------
 @app.route("/view_stock")
 @login_required
@@ -152,13 +166,13 @@ def view_stock():
     conn.close()
     return render_template("view_stock.html", stock=stock)
 
+
 # ---------- ADD PURCHASE ----------
 @app.route("/add_purchase", methods=["GET", "POST"])
 @login_required
 def add_purchase():
     error = None
     if request.method == "POST":
-        # FIX: Wrapped in try/except to handle bad float input instead of crashing
         try:
             item     = request.form["item"].strip()
             material = request.form["material"].strip()
@@ -171,7 +185,6 @@ def add_purchase():
             error = "Invalid input. Please check all fields and enter valid numbers."
             return render_template("add_purchase.html", error=error)
 
-        # FIX: Validate weight and purity are positive numbers
         if weight <= 0 or purity <= 0:
             error = "Weight and Purity must be positive numbers."
             return render_template("add_purchase.html", error=error)
@@ -200,28 +213,28 @@ def add_purchase():
         return redirect("/view_stock")
     return render_template("add_purchase.html", error=error)
 
+
 # ---------- RECORD SALE ----------
 @app.route("/record_sale", methods=["GET", "POST"])
 @login_required
 def record_sale():
-    message = None
+    message      = None
     invoice_path = None
 
     if request.method == "POST":
-        # Validate stock_id
         try:
             stock_id = int(request.form["stock_id"])
         except (ValueError, KeyError):
             message = "Invalid Stock ID."
             return render_template("record_sale.html", message=message)
 
-        buyer  = request.form.get("buyer", "").strip()
-        phone  = request.form.get("phone", "").strip()
-        hsn    = request.form.get("hsn", "").strip()
+        buyer = request.form.get("buyer", "").strip()
+        phone = request.form.get("phone", "").strip()
+        hsn   = request.form.get("hsn", "").strip()
 
         try:
-            rate_per_gram   = float(request.form.get("rate_per_gram", 0))
-            making_charges  = float(request.form.get("making_charges", 0))
+            rate_per_gram  = float(request.form.get("rate_per_gram", 0))
+            making_charges = float(request.form.get("making_charges", 0))
         except ValueError:
             message = "Rate and Making Charges must be valid numbers."
             return render_template("record_sale.html", message=message)
@@ -262,36 +275,34 @@ def record_sale():
             cur.execute("DELETE FROM stock WHERE ID=?", (stock_id,))
             conn.commit()
 
-            # Get the sale ID that was just inserted
             new_sale_id = cur.lastrowid
             conn.close()
 
-            # Generate PDF invoice
             try:
                 invoice_path = generate_invoice(
-                    sale_id       = new_sale_id,
-                    item          = item["ITEM"],
-                    material      = item["MATERIAL"],
-                    category      = item["CATEGORY"],
-                    weight        = item["WEIGHT"],
-                    purity        = item["PURITY"],
-                    hsn_code      = hsn,
-                    rate_per_gram = rate_per_gram,
-                    making_charges= making_charges,
-                    buyer_name    = buyer,
-                    buyer_phone   = phone,
-                    sale_date     = datetime.now().strftime("%d-%m-%Y")
+                    sale_id        = new_sale_id,
+                    item           = item["ITEM"],
+                    material       = item["MATERIAL"],
+                    category       = item["CATEGORY"],
+                    weight         = item["WEIGHT"],
+                    purity         = item["PURITY"],
+                    hsn_code       = hsn,
+                    rate_per_gram  = rate_per_gram,
+                    making_charges = making_charges,
+                    buyer_name     = buyer,
+                    buyer_phone    = phone,
+                    sale_date      = datetime.now().strftime("%d-%m-%Y")
                 )
-                # Open the invoices folder automatically in Windows Explorer
                 invoice_folder = os.path.abspath("invoices")
                 subprocess.Popen(f'explorer "{invoice_folder}"')
-
                 message = f"Sale recorded. Invoice saved: {os.path.basename(invoice_path)}"
 
             except Exception as e:
                 message = f"Sale recorded but invoice failed: {str(e)}"
 
     return render_template("record_sale.html", message=message)
+
+
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
 @login_required
@@ -304,6 +315,7 @@ def view_purchases():
     """).fetchall()
     conn.close()
     return render_template("view_purchases.html", purchases=purchases)
+
 
 # ---------- VIEW SALES ----------
 @app.route("/view_sales")
@@ -318,8 +330,8 @@ def view_sales():
     conn.close()
     return render_template("view_sales.html", sales=sales)
 
+
 # ---------- REPORTS ----------
-# FIX: Removed f-string SQL injection risk by using a lookup dict for safe query selection
 @app.route("/report", methods=["GET", "POST"])
 @login_required
 def report():
@@ -342,11 +354,10 @@ def report():
         },
     }
 
-    # FIX: Default to daily if someone sends a garbage report_type value
     if report_type not in REPORT_QUERIES:
         report_type = "daily"
 
-    queries = REPORT_QUERIES[report_type]
+    queries  = REPORT_QUERIES[report_type]
     purchase = conn.execute(*queries["purchase"]).fetchall()
     sales    = conn.execute(*queries["sale"]).fetchall()
     conn.close()
@@ -357,6 +368,7 @@ def report():
         sales=sales,
         report_type=report_type
     )
+
 
 # ---------- EXPORT STOCK ----------
 @app.route("/export_stock")
@@ -372,7 +384,6 @@ def export_stock():
     def generate():
         yield "ID,Item,Material,Category,Weight,Purity,Purchase Date\n"
         for r in rows:
-            # FIX: Wrap fields in quotes to handle commas in item names
             yield (
                 f"{r['ID']},"
                 f"\"{r['ITEM']}\","
@@ -388,6 +399,7 @@ def export_stock():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=stock_report.csv"}
     )
+
 
 # ---------- EXPORT REPORT ----------
 @app.route("/export_report/<report_type>")
@@ -411,7 +423,6 @@ def export_report(report_type):
         },
     }
 
-    # FIX: Reject invalid report_type values — don't process garbage input
     if report_type not in EXPORT_QUERIES:
         return "Invalid report type.", 400
 
@@ -436,6 +447,43 @@ def export_report(report_type):
         headers={"Content-Disposition": f"attachment; filename={report_type}_report.csv"}
     )
 
+
+# ---------- EXPORT DATA PAGE ----------
+@app.route("/export_data")
+@login_required
+def export_data():
+    return render_template("export_data.html")
+
+
+@app.route("/export/<table_name>")
+@login_required
+def export_table(table_name):
+    allowed = {
+        "stock":    ("stock",    ["ID", "ITEM", "MATERIAL", "CATEGORY", "WEIGHT", "PURITY", "PURCHASE_DATE"]),
+        "purchase": ("purchase", ["ID", "ITEM", "MATERIAL", "CATEGORY", "WEIGHT", "PURITY", "SELLER", "PHONE", "PURCHASE_DATE"]),
+        "sale":     ("sale",     ["ID", "ITEM", "MATERIAL", "CATEGORY", "WEIGHT", "PURITY", "BUYER", "PHONE", "SALE_DATE"]),
+    }
+
+    if table_name not in allowed:
+        return "Invalid table.", 400
+
+    table, columns = allowed[table_name]
+    conn = get_db()
+    rows = conn.execute(f"SELECT {','.join(columns)} FROM {table}").fetchall()
+    conn.close()
+
+    def generate():
+        yield ",".join(columns) + "\n"
+        for row in rows:
+            yield ",".join([f'"{str(row[col])}"' for col in columns]) + "\n"
+
+    return Response(
+        generate(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={table_name}_export.csv"}
+    )
+
+
 # ---------- SEARCH ----------
 @app.route("/search", methods=["GET", "POST"])
 @login_required
@@ -457,7 +505,6 @@ def search():
         if column in allowed_columns:
             conn = get_db()
             if column in ["ID", "PURITY", "PURCHASE_DATE"]:
-                # FIX: exact match for numeric/date fields
                 results = conn.execute(f"""
                     SELECT ID, ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, PURCHASE_DATE
                     FROM stock WHERE {allowed_columns[column]} = ?
@@ -471,28 +518,8 @@ def search():
 
     return render_template("search.html", results=results)
 
-# ---------- SHUTDOWN ----------
-# FIX: Removed unauthenticated /shutdown endpoint — was a huge security hole.
-# The app can simply be stopped with Ctrl+C in the terminal.
 
-# ---------- OPEN BROWSER ----------
-def open_browser():
-    webbrowser.open_new("http://127.0.0.1:5000")
-@app.after_request
-#----------- cache ----------
-def no_cache(response):
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-# ---------- MAIN ----------
-if __name__ == "__main__":
-    init_db()  # FIX: Proper DB init only when app starts, not at import time
-    threading.Timer(1.2, open_browser).start()
-    try:
-        app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
-    except KeyboardInterrupt:
-        pass
+# ---------- IMPORT DATA ----------
 @app.route("/import_data", methods=["GET", "POST"])
 @login_required
 def import_data():
@@ -509,14 +536,12 @@ def import_data():
 
         filename = file.filename.lower()
 
-        # Read rows depending on file type
         try:
             rows = []
             if filename.endswith(".csv"):
                 stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
                 reader = csv.DictReader(stream)
                 rows   = list(reader)
-
             elif filename.endswith((".xlsx", ".xls")):
                 import openpyxl
                 wb    = openpyxl.load_workbook(file)
@@ -532,14 +557,12 @@ def import_data():
             message = f"Could not read file: {str(e)}"
             return render_template("import_data.html", message=message, errors=errors)
 
-        # Process rows
         conn    = get_db()
         cur     = conn.cursor()
         success = 0
 
         for idx, row in enumerate(rows, start=2):
             try:
-                # Normalize keys — strip spaces and uppercase
                 row = {k.strip().upper(): str(v).strip() if v is not None else "" for k, v in row.items()}
 
                 if import_type == "stock":
@@ -597,3 +620,18 @@ def import_data():
             message += f" {len(errors)} rows had errors and were skipped."
 
     return render_template("import_data.html", message=message, errors=errors)
+
+
+# ---------- OPEN BROWSER ----------
+def open_browser():
+    webbrowser.open_new("http://127.0.0.1:5000")
+
+
+# ---------- MAIN ----------
+if __name__ == "__main__":
+    init_db()
+    threading.Timer(1.2, open_browser).start()
+    try:
+        app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    except KeyboardInterrupt:
+        pass

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📤 Export Data</div>
+
+<!-- CURRENT DATA -->
+<div class="card">
+    <h3>📦 Current Data</h3>
+    <p>Download your current records as CSV files. Open in Excel or Google Sheets.</p>
+
+    <div class="export-grid">
+
+        <div class="export-card">
+            <div class="export-icon">📦</div>
+            <div class="export-label">Current Stock</div>
+            <div class="export-desc">All items currently in stock</div>
+            <a href="/export/stock" class="btn">⬇ Download</a>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">📥</div>
+            <div class="export-label">Purchase History</div>
+            <div class="export-desc">All purchase records with seller info</div>
+            <a href="/export/purchase" class="btn">⬇ Download</a>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">📤</div>
+            <div class="export-label">Sale History</div>
+            <div class="export-desc">All sale records with buyer info</div>
+            <a href="/export/sale" class="btn">⬇ Download</a>
+        </div>
+
+    </div>
+</div>
+
+<!-- REPORTS -->
+<div class="card">
+    <h3>📊 Reports by Period</h3>
+    <p>Download purchase and sale reports filtered by time period.</p>
+
+    <div class="export-grid">
+
+        <div class="export-card">
+            <div class="export-icon">📅</div>
+            <div class="export-label">Daily Report</div>
+            <div class="export-desc">Today's purchases and sales</div>
+            <a href="/export_report/daily" class="btn">⬇ Download</a>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">🗓️</div>
+            <div class="export-label">Monthly Report</div>
+            <div class="export-desc">This month's purchases and sales</div>
+            <a href="/export_report/monthly" class="btn">⬇ Download</a>
+        </div>
+
+        <div class="export-card">
+            <div class="export-icon">📆</div>
+            <div class="export-label">Yearly Report</div>
+            <div class="export-desc">This year's purchases and sales</div>
+            <a href="/export_report/yearly" class="btn">⬇ Download</a>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

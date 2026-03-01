@@ -349,3 +349,35 @@ select, button {
     border-radius: 6px;
     font-weight: bold;
 }
+/* ── Export Data Page ── */
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.export-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    background: #fafafa;
+}
+
+.export-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.export-label {
+    font-weight: bold;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.export-desc {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 14px;
+}
