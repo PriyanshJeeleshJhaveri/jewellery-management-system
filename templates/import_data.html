@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📂 Import Data</div>
+
+<div class="card">
+    <h3>Upload CSV or Excel File</h3>
+    <p>Use this to import your existing stock, purchase, or sale records into the system.</p>
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <div class="form-group" style="margin-bottom:16px;">
+            <label><strong>What are you importing?</strong></label>
+            <select name="import_type" required style="width:100%;padding:8px;margin-top:6px;">
+                <option value="">-- Select Type --</option>
+                <option value="stock">Current Stock</option>
+                <option value="purchase">Purchase History</option>
+                <option value="sale">Sale History</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+            <label><strong>Select File (.csv or .xlsx)</strong></label>
+            <input type="file" name="file" accept=".csv,.xlsx,.xls"
+                   required style="width:100%;padding:8px;margin-top:6px;">
+        </div>
+
+        <button type="submit" class="btn">Upload and Import</button>
+    </form>
+</div>
+
+{% if message %}
+<div class="card {{ 'error-msg' if 'error' in message.lower() else 'success' }}">
+    {{ message }}
+</div>
+{% endif %}
+
+{% if errors %}
+<div class="card" style="background:#fff8e1;border-left:4px solid #f39c12;">
+    <h3>⚠️ Rows with errors (skipped):</h3>
+    {% for e in errors %}
+    <p style="font-size:13px;color:#7d6608;">{{ e }}</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Template download section -->
+<div class="card">
+    <h3>📋 Required Column Format</h3>
+    <p>Your file must have these exact column headers:</p>
+
+    <h4 style="margin-top:12px;">Stock / Purchase File:</h4>
+    <table>
+        <tr><th>ITEM</th><th>MATERIAL</th><th>CATEGORY</th>
+            <th>WEIGHT</th><th>PURITY</th><th>PURCHASE_DATE</th></tr>
+        <tr><td>Ring</td><td>GOLD</td><td>FEMALE</td>
+            <td>5.5</td><td>916</td><td>2024-01-15</td></tr>
+    </table>
+
+    <h4 style="margin-top:16px;">Purchase File (extra columns):</h4>
+    <table>
+        <tr><th>ITEM</th><th>MATERIAL</th><th>CATEGORY</th><th>WEIGHT</th>
+            <th>PURITY</th><th>SELLER</th><th>PHONE</th><th>PURCHASE_DATE</th></tr>
+        <tr><td>Ring</td><td>GOLD</td><td>FEMALE</td><td>5.5</td>
+            <td>916</td><td>Ramesh Shah</td><td>9898000000</td><td>2024-01-15</td></tr>
+    </table>
+
+    <h4 style="margin-top:16px;">Sale File:</h4>
+    <table>
+        <tr><th>ITEM</th><th>MATERIAL</th><th>CATEGORY</th><th>WEIGHT</th>
+            <th>PURITY</th><th>BUYER</th><th>PHONE</th><th>SALE_DATE</th></tr>
+        <tr><td>Ring</td><td>GOLD</td><td>FEMALE</td><td>5.5</td>
+            <td>916</td><td>Jiya Shah</td><td>9825000000</td><td>2024-01-20</td></tr>
+    </table>
+
+    <p style="margin-top:12px;font-size:13px;color:#888;">
+        Date format must be YYYY-MM-DD (e.g. 2024-01-15).
+        MATERIAL must be GOLD, SILVER, or DIAMOND.
+    </p>
+</div>
+
+{% endblock %}

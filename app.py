@@ -1,13 +1,15 @@
 from flask import Flask, render_template, request, redirect, Response, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, date
+from functools import wraps
+from invoice_generator import generate_invoice
 import sqlite3
 import webbrowser
 import threading
 import os
+import csv
+import io
 import subprocess
-from datetime import datetime, date
-from functools import wraps
-from invoice_generator import generate_invoice
 
 app = Flask(__name__)
 app.secret_key = "change-this-to-a-random-secret-key-before-deploying"  # FIX: Added secret key for sessions
@@ -491,3 +493,107 @@ if __name__ == "__main__":
         app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
     except KeyboardInterrupt:
         pass
+@app.route("/import_data", methods=["GET", "POST"])
+@login_required
+def import_data():
+    message = None
+    errors  = []
+
+    if request.method == "POST":
+        import_type = request.form.get("import_type")
+        file        = request.files.get("file")
+
+        if not file or file.filename == "":
+            message = "No file selected."
+            return render_template("import_data.html", message=message, errors=errors)
+
+        filename = file.filename.lower()
+
+        # Read rows depending on file type
+        try:
+            rows = []
+            if filename.endswith(".csv"):
+                stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
+                reader = csv.DictReader(stream)
+                rows   = list(reader)
+
+            elif filename.endswith((".xlsx", ".xls")):
+                import openpyxl
+                wb    = openpyxl.load_workbook(file)
+                ws    = wb.active
+                heads = [str(cell.value).strip() for cell in ws[1]]
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    rows.append(dict(zip(heads, row)))
+            else:
+                message = "Only .csv or .xlsx files are supported."
+                return render_template("import_data.html", message=message, errors=errors)
+
+        except Exception as e:
+            message = f"Could not read file: {str(e)}"
+            return render_template("import_data.html", message=message, errors=errors)
+
+        # Process rows
+        conn    = get_db()
+        cur     = conn.cursor()
+        success = 0
+
+        for idx, row in enumerate(rows, start=2):
+            try:
+                # Normalize keys — strip spaces and uppercase
+                row = {k.strip().upper(): str(v).strip() if v is not None else "" for k, v in row.items()}
+
+                if import_type == "stock":
+                    cur.execute("""
+                        INSERT INTO stock (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, PURCHASE_DATE)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        row["ITEM"],
+                        row["MATERIAL"].upper(),
+                        row["CATEGORY"].upper(),
+                        float(row["WEIGHT"]),
+                        float(row["PURITY"]),
+                        row.get("PURCHASE_DATE", datetime.now().strftime("%Y-%m-%d"))
+                    ))
+
+                elif import_type == "purchase":
+                    cur.execute("""
+                        INSERT INTO purchase (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, SELLER, PHONE, PURCHASE_DATE)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        row["ITEM"],
+                        row["MATERIAL"].upper(),
+                        row["CATEGORY"].upper(),
+                        float(row["WEIGHT"]),
+                        float(row["PURITY"]),
+                        row["SELLER"],
+                        row["PHONE"],
+                        row.get("PURCHASE_DATE", datetime.now().strftime("%Y-%m-%d"))
+                    ))
+
+                elif import_type == "sale":
+                    cur.execute("""
+                        INSERT INTO sale (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        row["ITEM"],
+                        row["MATERIAL"].upper(),
+                        row["CATEGORY"].upper(),
+                        float(row["WEIGHT"]),
+                        float(row["PURITY"]),
+                        row["BUYER"],
+                        row["PHONE"],
+                        row.get("SALE_DATE", datetime.now().strftime("%Y-%m-%d"))
+                    ))
+
+                success += 1
+
+            except Exception as e:
+                errors.append(f"Row {idx}: {str(e)}")
+
+        conn.commit()
+        conn.close()
+        message = f"Successfully imported {success} records."
+        if errors:
+            message += f" {len(errors)} rows had errors and were skipped."
+
+    return render_template("import_data.html", message=message, errors=errors)
