@@ -1,36 +1,40 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="page-title">📥 Purchase History</div>
+<div class="page-title">🧾 Purchase History</div>
 
 <div class="card">
-<table>
-    <tr>
-        <th>ID</th>
-        <th>Item</th>
-        <th>Material</th>
-        <th>Category</th>
-        <th>Weight</th>
-        <th>Purity</th>
-        <th>Seller</th>
-        <th>Phone</th>
-        <th>Purchase Date</th>
-    </tr>
-
-    {% for p in purchases %}
-    <tr>
-        <td>{{ p.ID }}</td>
-        <td>{{ p.ITEM }}</td>
-        <td>{{ p.MATERIAL }}</td>
-        <td>{{ p.CATEGORY }}</td>
-        <td>{{ p.WEIGHT }}</td>
-        <td>{{ p.PURITY }}</td>
-        <td>{{ p.SELLER }}</td>
-        <td>{{ p.PHONE }}</td>
-        <td>{{ p.PURCHASE_DATE }}</td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight</th>
+            <th>Purity</th>
+            <th>Seller</th>
+            <th>Phone</th>
+            <th>Purchase Date</th>
+        </tr>
+        {% for p in purchases %}
+        <tr>
+            <td>{{ p.ID }}</td>
+            <td>{{ p.ITEM }}</td>
+            <td>{{ p.MATERIAL }}</td>
+            <td>{{ p.CATEGORY }}</td>
+            <td>{{ p.WEIGHT }}</td>
+            <td>{{ p.PURITY }}</td>
+            <td>{{ p.SELLER }}</td>
+            <td>{{ p.PHONE }}</td>
+            <td>{{ p.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+        {% if not purchases %}
+        <tr><td colspan="9">No purchase records found.</td></tr>
+        {% endif %}
+    </table>
+    </div>
 </div>
 
 {% endblock %}

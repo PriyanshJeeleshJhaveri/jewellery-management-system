@@ -5,6 +5,7 @@
 
 <div class="card">
     {% if stock %}
+    <div class="table-wrapper">
     <table>
         <tr>
             <th>ID</th>
@@ -15,7 +16,6 @@
             <th>Purity</th>
             <th>Purchase Date</th>
         </tr>
-
         {% for s in stock %}
         <tr>
             <td>{{ s.ID }}</td>
@@ -28,6 +28,7 @@
         </tr>
         {% endfor %}
     </table>
+    </div>
     {% else %}
         <p>No stock available.</p>
     {% endif %}
