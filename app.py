@@ -4,15 +4,12 @@ from datetime import datetime, date
 from functools import wraps
 from invoice_generator import generate_invoice
 import sqlite3
-import webbrowser
-import threading
 import os
 import csv
 import io
-import subprocess
 
 app = Flask(__name__)
-app.secret_key = "change-this-to-a-random-secret-key-before-deploying"
+app.secret_key = os.environ.get("SECRET_KEY", "local-dev-only")
 
 DB_NAME = "jewellery.db"
 
@@ -293,9 +290,7 @@ def record_sale():
                     buyer_phone    = phone,
                     sale_date      = datetime.now().strftime("%d-%m-%Y")
                 )
-                invoice_folder = os.path.abspath("invoices")
-                subprocess.Popen(f'explorer "{invoice_folder}"')
-                message = f"Sale recorded. Invoice saved: {os.path.basename(invoice_path)}"
+                message = f"Sale recorded. Invoice saved as Invoice_{new_sale_id}_{buyer}.pdf"
 
             except Exception as e:
                 message = f"Sale recorded but invoice failed: {str(e)}"
@@ -621,17 +616,7 @@ def import_data():
 
     return render_template("import_data.html", message=message, errors=errors)
 
-
-# ---------- OPEN BROWSER ----------
-def open_browser():
-    webbrowser.open_new("http://127.0.0.1:5000")
-
-
 # ---------- MAIN ----------
 if __name__ == "__main__":
     init_db()
-    threading.Timer(1.2, open_browser).start()
-    try:
-        app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
-    except KeyboardInterrupt:
-        pass
+    app.run(debug=False)
