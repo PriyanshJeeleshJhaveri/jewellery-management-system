@@ -212,7 +212,6 @@ def add_purchase():
 
 
 # ---------- RECORD SALE ----------
-# ---------- RECORD SALE ----------
 @app.route("/record_sale", methods=["GET", "POST"])
 @login_required
 def record_sale():
@@ -292,6 +291,7 @@ def record_sale():
             )
             with open(invoice_path, "rb") as f:
                 pdf_data = f.read()
+            os.remove(invoice_path)
             filename = os.path.basename(invoice_path)
             return Response(
                 pdf_data,
@@ -304,7 +304,7 @@ def record_sale():
             return render_template("record_sale.html", message=message)
 
     return render_template("record_sale.html", message=message)
-
+    
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
 @login_required
