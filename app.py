@@ -212,11 +212,11 @@ def add_purchase():
 
 
 # ---------- RECORD SALE ----------
+# ---------- RECORD SALE ----------
 @app.route("/record_sale", methods=["GET", "POST"])
 @login_required
 def record_sale():
-    message      = None
-    invoice_path = None
+    message = None
 
     if request.method == "POST":
         try:
@@ -260,43 +260,50 @@ def record_sale():
         if not item:
             message = "Invalid Stock ID. No item found."
             conn.close()
-        else:
-            cur.execute("""
-                INSERT INTO sale
-                (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, (
-                item["ITEM"], item["MATERIAL"], item["CATEGORY"],
-                item["WEIGHT"], item["PURITY"], buyer, phone, sale_date
-            ))
-            cur.execute("DELETE FROM stock WHERE ID=?", (stock_id,))
-            conn.commit()
+            return render_template("record_sale.html", message=message)
 
-            new_sale_id = cur.lastrowid
-            conn.close()
+        cur.execute("""
+            INSERT INTO sale
+            (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            item["ITEM"], item["MATERIAL"], item["CATEGORY"],
+            item["WEIGHT"], item["PURITY"], buyer, phone, sale_date
+        ))
+        cur.execute("DELETE FROM stock WHERE ID=?", (stock_id,))
+        conn.commit()
+        new_sale_id = cur.lastrowid
+        conn.close()
 
-            try:
-                invoice_path = generate_invoice(
-                    sale_id        = new_sale_id,
-                    item           = item["ITEM"],
-                    material       = item["MATERIAL"],
-                    category       = item["CATEGORY"],
-                    weight         = item["WEIGHT"],
-                    purity         = item["PURITY"],
-                    hsn_code       = hsn,
-                    rate_per_gram  = rate_per_gram,
-                    making_charges = making_charges,
-                    buyer_name     = buyer,
-                    buyer_phone    = phone,
-                    sale_date      = datetime.now().strftime("%d-%m-%Y")
-                )
-                message = f"Sale recorded. Invoice saved as Invoice_{new_sale_id}_{buyer}.pdf"
+        try:
+            invoice_path = generate_invoice(
+                sale_id        = new_sale_id,
+                item           = item["ITEM"],
+                material       = item["MATERIAL"],
+                category       = item["CATEGORY"],
+                weight         = item["WEIGHT"],
+                purity         = item["PURITY"],
+                hsn_code       = hsn,
+                rate_per_gram  = rate_per_gram,
+                making_charges = making_charges,
+                buyer_name     = buyer,
+                buyer_phone    = phone,
+                sale_date      = datetime.now().strftime("%d-%m-%Y")
+            )
+            with open(invoice_path, "rb") as f:
+                pdf_data = f.read()
+            filename = os.path.basename(invoice_path)
+            return Response(
+                pdf_data,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
 
-            except Exception as e:
-                message = f"Sale recorded but invoice failed: {str(e)}"
+        except Exception as e:
+            message = f"Sale recorded but invoice failed: {str(e)}"
+            return render_template("record_sale.html", message=message)
 
     return render_template("record_sale.html", message=message)
-
 
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
