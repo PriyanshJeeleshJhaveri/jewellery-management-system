@@ -4,7 +4,6 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from datetime import datetime
-
 # ── Shop constants ───────────────────────────────────────────────
 SHOP_NAME      = "Ratnakar Jewellers"
 SHOP_TAGLINE   = "Mfrs. in: High Class Gold & Silver Ornaments * KDM JOINTS * 916 Hallmark Jewellery 100% Returnable"
@@ -28,7 +27,6 @@ BLACK = colors.black
 
 def draw_cell(c, x, y, w, h, text, font="Helvetica", size=8,
               fill_color=None, text_color=BLACK, align="left", bold=False):
-    """Draw a bordered cell with text."""
     if fill_color:
         c.setFillColor(fill_color)
         c.rect(x, y, w, h, fill=1, stroke=0)
@@ -46,28 +44,42 @@ def draw_cell(c, x, y, w, h, text, font="Helvetica", size=8,
         c.drawString(x + 2*mm, y + h / 2 - size / 3, text)
 
 
-def generate_invoice(sale_id, item, material, category, weight,
-                     purity, hsn_code, rate_per_gram,
-                     making_charges=0,
-                     buyer_name="", buyer_phone="",
-                     sale_date=None):
+def generate_invoice(sale_id, buyer_name="", buyer_phone="",
+                     sale_date=None, items=None,
+                     # Legacy single-item support
+                     item=None, material=None, category=None,
+                     weight=None, purity=None, hsn_code=None,
+                     rate_per_gram=None, making_charges=0):
 
     os.makedirs(INVOICE_DIR, exist_ok=True)
 
     if sale_date is None:
         sale_date = datetime.now().strftime("%d-%m-%Y")
 
+    # ── Support both single item (old) and multiple items (new cart) ──
+    if items is None:
+        items = [{
+            "item":          item,
+            "material":      material,
+            "category":      category,
+            "weight":        weight,
+            "purity":        purity,
+            "hsn":           hsn_code,
+            "rate_per_gram": rate_per_gram,
+            "making_charges": making_charges,
+            "item_total":    round((weight * rate_per_gram) + making_charges, 2)
+        }]
+
     filename = f"Invoice_{sale_id}_{buyer_name.replace(' ', '_')}.pdf"
     filepath = os.path.join(INVOICE_DIR, filename)
 
     # ── Calculations ─────────────────────────────────────────────
-    item_value      = round(weight * rate_per_gram, 2)
-    taxable_amount  = round(item_value + making_charges, 2)
+    taxable_amount  = round(sum(i["item_total"] for i in items), 2)
     sgst_amount     = round(taxable_amount * SGST_RATE, 2)
     cgst_amount     = round(taxable_amount * CGST_RATE, 2)
     total_after_gst = round(taxable_amount + sgst_amount + cgst_amount, 2)
 
-    W, H = A4  # 595.27 x 841.89 points
+    W, H = A4
     c = canvas.Canvas(filepath, pagesize=A4)
 
     LEFT    = 12*mm
@@ -76,16 +88,12 @@ def generate_invoice(sale_id, item, material, category, weight,
     BOTTOM  = 12*mm
     INNER_W = RIGHT - LEFT
 
-    # ════════════════════════════════════════════════════════════
-    # OUTER BORDER
-    # ════════════════════════════════════════════════════════════
+    # ── Outer border ─────────────────────────────────────────────
     c.setStrokeColor(RED)
     c.setLineWidth(2)
     c.rect(LEFT, BOTTOM, INNER_W, H - 24*mm)
 
-    # ════════════════════════════════════════════════════════════
-    # HEADER
-    # ════════════════════════════════════════════════════════════
+    # ── Header ───────────────────────────────────────────────────
     cur_y = TOP
 
     c.setFont("Helvetica-Bold", 8)
@@ -94,7 +102,6 @@ def generate_invoice(sale_id, item, material, category, weight,
     c.drawString(LEFT + 2*mm,    cur_y - 11*mm, f"PAN   : {SHOP_PAN}")
     c.drawRightString(RIGHT - 2*mm, cur_y - 6*mm,  SHOP_PHONE1)
     c.drawRightString(RIGHT - 2*mm, cur_y - 11*mm, SHOP_PHONE2)
-
     c.setFont("Helvetica-Bold", 9)
     c.drawRightString(RIGHT - 2*mm, cur_y - 17*mm, "TAX INVOICE")
 
@@ -112,9 +119,7 @@ def generate_invoice(sale_id, item, material, category, weight,
     c.setLineWidth(1)
     c.line(LEFT, cur_y - 40*mm, RIGHT, cur_y - 40*mm)
 
-    # ════════════════════════════════════════════════════════════
-    # CUSTOMER + INVOICE INFO
-    # ════════════════════════════════════════════════════════════
+    # ── Customer + Invoice info ───────────────────────────────────
     info_y  = cur_y - 41*mm
     row_h   = 7*mm
     left_w  = INNER_W * 0.55
@@ -125,13 +130,11 @@ def generate_invoice(sale_id, item, material, category, weight,
 
     for i, (lbl, val) in enumerate(zip(labels, values)):
         ry = info_y - i * row_h
-        draw_cell(c, LEFT,              ry - row_h, label_w,            row_h, lbl, bold=True, size=8)
-        draw_cell(c, LEFT + label_w,    ry - row_h, left_w - label_w,   row_h, val, size=8)
+        draw_cell(c, LEFT,           ry - row_h, label_w,          row_h, lbl, bold=True, size=8)
+        draw_cell(c, LEFT + label_w, ry - row_h, left_w - label_w, row_h, val, size=8)
 
     box_x   = LEFT + left_w
     box_w   = INNER_W - left_w
-    lbl_w_b = box_w * 0.68
-    val_w_b = box_w - lbl_w_b
 
     box_rows = [
         ("Reverse Charge (Y/N)", "N"),
@@ -141,26 +144,25 @@ def generate_invoice(sale_id, item, material, category, weight,
     for i, (lbl, val) in enumerate(box_rows):
         ry = info_y - i * row_h
         if val:
+            lbl_w_b = box_w * 0.68
+            val_w_b = box_w - lbl_w_b
             draw_cell(c, box_x,           ry - row_h, lbl_w_b, row_h, lbl, bold=True, size=7.5)
             draw_cell(c, box_x + lbl_w_b, ry - row_h, val_w_b, row_h, val, size=7.5, align="center")
         else:
-            draw_cell(c, box_x,           ry - row_h, box_w,   row_h, lbl, bold=True, size=7.5)
+            draw_cell(c, box_x, ry - row_h, box_w, row_h, lbl, bold=True, size=7.5)
 
-    # ════════════════════════════════════════════════════════════
-    # ITEM TABLE
-    # ════════════════════════════════════════════════════════════
+    # ── Item table ───────────────────────────────────────────────
     table_y  = info_y - 3 * row_h - 3*mm
     header_h = 10*mm
     data_h   = 9*mm
 
-    # Column widths — must sum to INNER_W exactly
-    c1 = 10*mm   # Sr
-    c2 = 66*mm   # Description
-    c3 = 20*mm   # HSN
-    c4 = 13*mm   # UOM
-    c5 = 20*mm   # Weight
-    c6 = 22*mm   # Rate
-    c7 = INNER_W - c1 - c2 - c3 - c4 - c5 - c6  # Taxable Amount
+    c1 = 10*mm
+    c2 = 62*mm
+    c3 = 18*mm
+    c4 = 13*mm
+    c5 = 18*mm
+    c6 = 20*mm
+    c7 = INNER_W - c1 - c2 - c3 - c4 - c5 - c6
 
     COL_DEFS = [
         ("Sr.",                        c1, "center"),
@@ -172,54 +174,58 @@ def generate_invoice(sale_id, item, material, category, weight,
         ("Taxable Amount (Rs)",        c7, "right"),
     ]
 
-    # Header
+    # Header row
     cx = LEFT
     for hdr, cw, align in COL_DEFS:
         draw_cell(c, cx, table_y - header_h, cw, header_h,
                   hdr, fill_color=RED, text_color=WHITE, bold=True, size=7, align="center")
         cx += cw
 
-    # Item row
-    row_data = [
-        "1",
-        f"{item} ({material}) | {category} | Purity: {purity}",
-        str(hsn_code),
-        "Gms",
-        str(weight),
-        str(rate_per_gram),
-        f"{item_value:.2f}",
-    ]
-    cx = LEFT
-    for (hdr, cw, align), val in zip(COL_DEFS, row_data):
-        draw_cell(c, cx, table_y - header_h - data_h, cw, data_h,
-                  val, size=7.5, align=align)
-        cx += cw
-
-    # Making charges row
-    extra_rows = 0
-    if making_charges > 0:
-        mc_y   = table_y - header_h - data_h
-        mc_data = ["2", "Making Charges", str(hsn_code), "—", "—", "—", f"{making_charges:.2f}"]
+    # Data rows — one per item
+    for idx, itm in enumerate(items):
+        row_y = table_y - header_h - (idx + 1) * data_h
+        row_data = [
+            str(idx + 1),
+            f"{itm['item']} ({itm['material']}) | {itm['category']} | Purity: {itm['purity']}",
+            str(itm["hsn"]),
+            "Gms",
+            str(itm["weight"]),
+            str(itm["rate_per_gram"]),
+            f"{itm['item_total']:.2f}",
+        ]
         cx = LEFT
-        for (hdr, cw, align), val in zip(COL_DEFS, mc_data):
-            draw_cell(c, cx, mc_y - data_h, cw, data_h,
-                      val, size=7.5, align=align)
+        for (hdr, cw, align), val in zip(COL_DEFS, row_data):
+            draw_cell(c, cx, row_y, cw, data_h, val, size=7.5, align=align)
             cx += cw
-        extra_rows = 1
+
+    # Making charges rows
+    mc_offset = len(items)
+    for idx, itm in enumerate(items):
+        if itm["making_charges"] > 0:
+            row_y = table_y - header_h - (mc_offset + idx + 1) * data_h
+            mc_data = [
+                f"MC{idx+1}",
+                f"Making Charges — {itm['item']}",
+                str(itm["hsn"]),
+                "—", "—", "—",
+                f"{itm['making_charges']:.2f}"
+            ]
+            cx = LEFT
+            for (hdr, cw, align), val in zip(COL_DEFS, mc_data):
+                draw_cell(c, cx, row_y, cw, data_h, val, size=7.5, align=align)
+                cx += cw
 
     # Empty filler rows
-    filled = 1 + extra_rows
-    for extra in range(max(0, 5 - filled)):
-        ey = table_y - header_h - (filled + extra + 1) * data_h
+    total_data_rows = mc_offset + sum(1 for i in items if i["making_charges"] > 0)
+    for extra in range(max(0, 5 - total_data_rows)):
+        ey = table_y - header_h - (total_data_rows + extra + 1) * data_h
         cx = LEFT
         for hdr, cw, align in COL_DEFS:
             draw_cell(c, cx, ey, cw, data_h, "", size=7.5)
             cx += cw
 
-    # ════════════════════════════════════════════════════════════
-    # GST SUMMARY
-    # ════════════════════════════════════════════════════════════
-    total_rows  = max(5, filled)
+    # ── GST Summary ──────────────────────────────────────────────
+    total_rows  = max(5, total_data_rows)
     gst_start_y = table_y - header_h - (total_rows + 1) * data_h - 3*mm
 
     gst_lbl_w = 52*mm
@@ -240,7 +246,7 @@ def generate_invoice(sale_id, item, material, category, weight,
         gy = gst_start_y - i * gst_row_h
         fc = RED if bold else None
         tc = WHITE if bold else BLACK
-        draw_cell(c, gst_x,             gy - gst_row_h, gst_lbl_w, gst_row_h,
+        draw_cell(c, gst_x,              gy - gst_row_h, gst_lbl_w, gst_row_h,
                   lbl, bold=bold, size=7.5, fill_color=fc, text_color=tc)
         draw_cell(c, gst_x + gst_lbl_w, gy - gst_row_h, gst_val_w, gst_row_h,
                   val, bold=bold, size=7.5, align="right", fill_color=fc, text_color=tc)
@@ -253,9 +259,7 @@ def generate_invoice(sale_id, item, material, category, weight,
     c.setFont("Helvetica", 7.5)
     c.drawString(LEFT + 43*mm, words_y, amount_to_words(total_after_gst))
 
-    # ════════════════════════════════════════════════════════════
-    # FOOTER
-    # ════════════════════════════════════════════════════════════
+    # ── Footer ───────────────────────────────────────────────────
     footer_y = BOTTOM + 42*mm
     c.setStrokeColor(RED)
     c.setLineWidth(0.8)
@@ -287,7 +291,6 @@ def generate_invoice(sale_id, item, material, category, weight,
     for i, term in enumerate(terms):
         c.drawString(LEFT + 2*mm, footer_y - 28*mm - i * 4.5*mm, term)
 
-    # Signature lines
     c.setStrokeColor(BLACK)
     c.setLineWidth(0.5)
     sig_y = BOTTOM + 14*mm

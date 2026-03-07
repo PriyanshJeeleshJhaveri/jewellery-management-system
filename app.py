@@ -212,98 +212,15 @@ def add_purchase():
 
 
 # ---------- RECORD SALE ----------
-@app.route("/record_sale", methods=["GET", "POST"])
+@app.route("/record_sale")
 @login_required
 def record_sale():
-    message = None
-
-    if request.method == "POST":
-        try:
-            stock_id = int(request.form["stock_id"])
-        except (ValueError, KeyError):
-            message = "Invalid Stock ID."
-            return render_template("record_sale.html", message=message)
-
-        buyer = request.form.get("buyer", "").strip()
-        phone = request.form.get("phone", "").strip()
-        hsn   = request.form.get("hsn", "").strip()
-
-        try:
-            rate_per_gram  = float(request.form.get("rate_per_gram", 0))
-            making_charges = float(request.form.get("making_charges", 0))
-        except ValueError:
-            message = "Rate and Making Charges must be valid numbers."
-            return render_template("record_sale.html", message=message)
-
-        if not phone.isdigit() or len(phone) != 10:
-            message = "Phone number must be exactly 10 digits."
-            return render_template("record_sale.html", message=message)
-
-        if not buyer:
-            message = "Buyer name is required."
-            return render_template("record_sale.html", message=message)
-
-        if rate_per_gram <= 0:
-            message = "Rate per gram must be greater than 0."
-            return render_template("record_sale.html", message=message)
-
-        if not hsn:
-            message = "HSN/SAC Code is required."
-            return render_template("record_sale.html", message=message)
-
-        sale_date = datetime.now().strftime("%Y-%m-%d")
-        conn = get_db()
-        cur  = conn.cursor()
-        item = cur.execute("SELECT * FROM stock WHERE ID=?", (stock_id,)).fetchone()
-
-        if not item:
-            message = "Invalid Stock ID. No item found."
-            conn.close()
-            return render_template("record_sale.html", message=message)
-
-        cur.execute("""
-            INSERT INTO sale
-            (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            item["ITEM"], item["MATERIAL"], item["CATEGORY"],
-            item["WEIGHT"], item["PURITY"], buyer, phone, sale_date
-        ))
-        cur.execute("DELETE FROM stock WHERE ID=?", (stock_id,))
-        conn.commit()
-        new_sale_id = cur.lastrowid
-        conn.close()
-
-        try:
-            invoice_path = generate_invoice(
-                sale_id        = new_sale_id,
-                item           = item["ITEM"],
-                material       = item["MATERIAL"],
-                category       = item["CATEGORY"],
-                weight         = item["WEIGHT"],
-                purity         = item["PURITY"],
-                hsn_code       = hsn,
-                rate_per_gram  = rate_per_gram,
-                making_charges = making_charges,
-                buyer_name     = buyer,
-                buyer_phone    = phone,
-                sale_date      = datetime.now().strftime("%d-%m-%Y")
-            )
-            with open(invoice_path, "rb") as f:
-                pdf_data = f.read()
-            os.remove(invoice_path)
-            filename = os.path.basename(invoice_path)
-            return Response(
-                pdf_data,
-                mimetype="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename={filename}"}
-            )
-
-        except Exception as e:
-            message = f"Sale recorded but invoice failed: {str(e)}"
-            return render_template("record_sale.html", message=message)
-
-    return render_template("record_sale.html", message=message)
+    cart_items = session.get("cart", [])
+    total      = sum(
+        round((i["weight"] * i["rate_per_gram"]) + i["making_charges"], 2)
+        for i in cart_items
+    )
+    return render_template("record_sale.html", cart=cart_items, total=total)
     
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
@@ -622,7 +539,140 @@ def import_data():
             message += f" {len(errors)} rows had errors and were skipped."
 
     return render_template("import_data.html", message=message, errors=errors)
+# ---------- CART ----------
+@app.route("/cart")
+@login_required
+def cart():
+    cart_items = session.get("cart", [])
+    total      = sum(
+        round((i["weight"] * i["rate_per_gram"]) + i["making_charges"], 2)
+        for i in cart_items
+    )
+    return render_template("record_sale.html", cart=cart_items, total=total)
 
+
+@app.route("/add_to_cart", methods=["POST"])
+@login_required
+def add_to_cart():
+    try:
+        stock_id = int(request.form["stock_id"])
+    except (ValueError, KeyError):
+        return redirect("/cart")
+
+    hsn = request.form.get("hsn", "").strip()
+
+    try:
+        rate_per_gram  = float(request.form.get("rate_per_gram", 0))
+        making_charges = float(request.form.get("making_charges", 0))
+    except ValueError:
+        return redirect("/cart")
+
+    if not hsn or rate_per_gram <= 0:
+        return redirect("/cart")
+
+    conn = get_db()
+    item = conn.execute(
+        "SELECT * FROM stock WHERE ID=?", (stock_id,)
+    ).fetchone()
+    conn.close()
+
+    if not item:
+        return redirect("/cart")
+
+    # Check if item already in cart
+    cart = session.get("cart", [])
+    for c in cart:
+        if c["stock_id"] == stock_id:
+            return redirect("/cart")
+
+    cart.append({
+        "stock_id":      stock_id,
+        "item":          item["ITEM"],
+        "material":      item["MATERIAL"],
+        "category":      item["CATEGORY"],
+        "weight":        item["WEIGHT"],
+        "purity":        item["PURITY"],
+        "hsn":           hsn,
+        "rate_per_gram": rate_per_gram,
+        "making_charges": making_charges,
+        "item_total":    round((item["WEIGHT"] * rate_per_gram) + making_charges, 2)
+    })
+    session["cart"] = cart
+    session.modified  = True
+    return redirect("/cart")
+
+
+@app.route("/remove_from_cart/<int:stock_id>")
+@login_required
+def remove_from_cart(stock_id):
+    cart = session.get("cart", [])
+    session["cart"]  = [i for i in cart if i["stock_id"] != stock_id]
+    session.modified = True
+    return redirect("/cart")
+
+
+@app.route("/complete_sale", methods=["POST"])
+@login_required
+def complete_sale():
+    cart = session.get("cart", [])
+
+    if not cart:
+        return redirect("/cart")
+
+    buyer = request.form.get("buyer", "").strip()
+    phone = request.form.get("phone", "").strip()
+
+    if not buyer:
+        return redirect("/cart")
+
+    if not phone.isdigit() or len(phone) != 10:
+        return redirect("/cart")
+
+    sale_date = datetime.now().strftime("%Y-%m-%d")
+    conn = get_db()
+    cur  = conn.cursor()
+
+    sale_ids = []
+    for i in cart:
+        cur.execute("""
+            INSERT INTO sale
+            (ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            i["item"], i["material"], i["category"],
+            i["weight"], i["purity"], buyer, phone, sale_date
+        ))
+        sale_ids.append(cur.lastrowid)
+        cur.execute("DELETE FROM stock WHERE ID=?", (i["stock_id"],))
+
+    conn.commit()
+    conn.close()
+
+    # Generate invoice
+    try:
+        invoice_path = generate_invoice(
+            sale_id        = sale_ids[0],
+            buyer_name     = buyer,
+            buyer_phone    = phone,
+            sale_date      = datetime.now().strftime("%d-%m-%Y"),
+            items          = cart
+        )
+        with open(invoice_path, "rb") as f:
+            pdf_data = f.read()
+        os.remove(invoice_path)
+        session["cart"] = []
+        session.modified = True
+        filename = os.path.basename(invoice_path)
+        return Response(
+            pdf_data,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except Exception as e:
+        session["cart"] = []
+        session.modified = True
+        return f"Sale recorded but invoice failed: {str(e)}"
 # ---------- MAIN ----------
 if __name__ == "__main__":
     init_db()

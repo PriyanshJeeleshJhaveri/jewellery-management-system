@@ -1,68 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="page-title">📤 Record Sale</div>
+<div class="page-title">🛒 Record Sale</div>
 
+<!-- ADD ITEM TO CART FORM -->
 <div class="card">
-<form method="post">
+    <h3>Add Item to Cart</h3>
+    <form method="POST" action="/add_to_cart">
+        <div class="form-grid" style="margin-bottom:16px;">
 
-    <div class="form-grid">
+            <div>
+                <label><strong>Stock ID</strong></label>
+                <input type="number" name="stock_id" required
+                       placeholder="Enter Stock ID from View Stock">
+            </div>
 
-        <div>
-            <label>Stock ID</label>
-            <input type="number" name="stock_id" required placeholder="Enter Stock ID">
+            <div>
+                <label><strong>HSN/SAC Code</strong></label>
+                <input type="text" name="hsn" required
+                       placeholder="e.g. 7113">
+            </div>
+
+            <div>
+                <label><strong>Rate per Gram (Rs)</strong></label>
+                <input type="number" name="rate_per_gram" step="0.01" min="0.01" required
+                       placeholder="e.g. 9000">
+            </div>
+
+            <div>
+                <label><strong>Making Charges (Rs)</strong></label>
+                <input type="number" name="making_charges" step="0.01" min="0" value="0">
+            </div>
+
         </div>
-
-        <div>
-            <label>Buyer Name</label>
-            <input type="text" name="buyer" required>
-        </div>
-
-        <div>
-            <label>Buyer Phone</label>
-            <input type="tel" name="phone" pattern="[0-9]{10}"
-                   title="Phone number must be exactly 10 digits" required>
-        </div>
-
-        <div>
-            <label>HSN / SAC Code</label>
-            <input type="text" name="hsn" required placeholder="e.g. 7113">
-        </div>
-
-        <div>
-            <label>Rate per Gram (Rs.)</label>
-            <input type="number" step="0.01" name="rate_per_gram"
-                   min="0.01" required placeholder="e.g. 6500">
-        </div>
-
-        <div>
-            <label>Making Charges (Rs.) <small>optional</small></label>
-            <input type="number" step="0.01" name="making_charges"
-                   min="0" value="0" placeholder="0">
-        </div>
-
-    </div>
-
-    <button class="btn" type="submit">Record Sale &amp; Generate Invoice</button>
-</form>
+        <button type="submit" class="btn">➕ Add to Cart</button>
+    </form>
 </div>
 
-{% if message %}
-<div class="card {% if 'failed' in message %}error-msg{% else %}success{% endif %}">
-    {{ message }}
+<!-- CART TABLE -->
+{% if cart %}
+<div class="card">
+    <h3>🛒 Cart ({{ cart|length }} item{{ 's' if cart|length > 1 else '' }})</h3>
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Stock ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight (g)</th>
+            <th>Purity</th>
+            <th>HSN</th>
+            <th>Rate/g</th>
+            <th>Making</th>
+            <th>Item Total</th>
+            <th>Remove</th>
+        </tr>
+        {% for i in cart %}
+        <tr>
+            <td>{{ i.stock_id }}</td>
+            <td>{{ i.item }}</td>
+            <td>{{ i.material }}</td>
+            <td>{{ i.category }}</td>
+            <td>{{ i.weight }}</td>
+            <td>{{ i.purity }}</td>
+            <td>{{ i.hsn }}</td>
+            <td>{{ i.rate_per_gram }}</td>
+            <td>{{ i.making_charges }}</td>
+            <td><strong>Rs. {{ i.item_total }}</strong></td>
+            <td>
+                <a href="/remove_from_cart/{{ i.stock_id }}"
+                   style="color:red;font-weight:bold;"
+                   onclick="return confirm('Remove this item from cart?')">✕</a>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr style="background:#f9f9f9;">
+            <td colspan="9" style="text-align:right;font-weight:bold;">
+                Total Before GST:
+            </td>
+            <td><strong>Rs. {{ total }}</strong></td>
+            <td></td>
+        </tr>
+    </table>
+    </div>
+</div>
+
+<!-- COMPLETE SALE FORM -->
+<div class="card">
+    <h3>✅ Complete Sale</h3>
+    <form method="POST" action="/complete_sale">
+        <div class="form-grid" style="margin-bottom:16px;">
+
+            <div>
+                <label><strong>Buyer Name</strong></label>
+                <input type="text" name="buyer" required
+                       placeholder="Enter buyer name">
+            </div>
+
+            <div>
+                <label><strong>Buyer Phone</strong></label>
+                <input type="number" name="phone" required
+                       placeholder="10 digit mobile number">
+            </div>
+
+        </div>
+        <button type="submit" class="btn"
+                onclick="return confirm('Complete sale and download invoice?')">
+            💾 Complete Sale & Download Invoice
+        </button>
+    </form>
+</div>
+
+{% else %}
+<div class="card">
+    <p style="color:#888;text-align:center;padding:20px;">
+        Cart is empty. Add items using the form above.
+        <br><br>
+        <a href="/view_stock" class="btn">📦 View Stock to find Stock IDs</a>
+    </p>
 </div>
 {% endif %}
-
-<!-- HSN quick reference for jewellery -->
-<div class="card">
-    <h3>📋 Common HSN Codes for Jewellery</h3>
-    <table>
-        <tr><th>HSN Code</th><th>Description</th></tr>
-        <tr><td>7113</td><td>Gold Jewellery / Articles of precious metal</td></tr>
-        <tr><td>7114</td><td>Silver Jewellery / Articles of precious metal</td></tr>
-        <tr><td>7102</td><td>Diamonds (worked)</td></tr>
-        <tr><td>7117</td><td>Imitation Jewellery</td></tr>
-    </table>
-</div>
 
 {% endblock %}
