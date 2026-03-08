@@ -104,26 +104,26 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
     BOTTOM  = 12*mm
     INNER_W = RIGHT - LEFT
 
-    # Outer border
+    # ── Outer border ─────────────────────────────────────────────
     c.setStrokeColor(RED)
     c.setLineWidth(2)
     c.rect(LEFT, BOTTOM, INNER_W, H - 24*mm)
 
     cur_y = TOP
 
-    # TAX INVOICE centered at top
+    # ── TAX INVOICE centered at top ───────────────────────────────
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(RED)
     c.drawCentredString(W / 2, cur_y - 6*mm, "TAX INVOICE")
 
-    # GSTIN / PAN / Phone
+    # ── GSTIN / PAN / Phones ──────────────────────────────────────
     c.setFont("Helvetica-Bold", 8)
     c.drawString(LEFT + 2*mm,       cur_y - 13*mm, f"GSTIN : {SHOP_GSTIN}")
     c.drawString(LEFT + 2*mm,       cur_y - 18*mm, f"PAN   : {SHOP_PAN}")
     c.drawRightString(RIGHT - 2*mm, cur_y - 13*mm, SHOP_PHONE1)
     c.drawRightString(RIGHT - 2*mm, cur_y - 18*mm, SHOP_PHONE2)
 
-    # Shop name
+    # ── Shop name ─────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 28)
     c.drawCentredString(W / 2, cur_y - 32*mm, SHOP_NAME)
 
@@ -138,7 +138,7 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
     c.setLineWidth(1)
     c.line(LEFT, cur_y - 46*mm, RIGHT, cur_y - 46*mm)
 
-    # Customer + Invoice info
+    # ── Customer + Invoice info ───────────────────────────────────
     info_y  = cur_y - 47*mm
     row_h   = 7*mm
     left_w  = INNER_W * 0.55
@@ -151,7 +151,6 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
         buyer_gstin if buyer_gstin else "—",
         buyer_phone
     ]
-
     for i, (lbl, val) in enumerate(zip(labels, values)):
         ry = info_y - i * row_h
         draw_cell(c, LEFT,           ry - row_h, label_w,          row_h, lbl, bold=True, size=8)
@@ -159,7 +158,6 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
 
     box_x = LEFT + left_w
     box_w = INNER_W - left_w
-
     box_rows = [
         f"Invoice No.  :  {sale_id}",
         f"Date  :  {sale_date}",
@@ -170,7 +168,7 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
         ry = info_y - i * row_h
         draw_cell(c, box_x, ry - row_h, box_w, row_h, lbl, bold=True, size=8)
 
-    # Item table
+    # ── Item table ───────────────────────────────────────────────
     table_y  = info_y - 4 * row_h - 4*mm
     header_h = 10*mm
     data_h   = 9*mm
@@ -199,14 +197,12 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
         ("Amount (Rs)",  c10, "right"),
     ]
 
-    # Header row
     cx = LEFT
     for hdr, cw, align in COL_DEFS:
         draw_cell(c, cx, table_y - header_h, cw, header_h,
                   hdr, fill_color=RED, text_color=WHITE, bold=True, size=7, align="center")
         cx += cw
 
-    # Data rows
     for idx, itm in enumerate(items):
         row_y    = table_y - header_h - (idx + 1) * data_h
         row_data = [
@@ -224,11 +220,9 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
         fill = LIGHT if idx % 2 == 0 else None
         cx = LEFT
         for (hdr, cw, align), val in zip(COL_DEFS, row_data):
-            draw_cell(c, cx, row_y, cw, data_h, val, size=7.5,
-                      align=align, fill_color=fill)
+            draw_cell(c, cx, row_y, cw, data_h, val, size=7.5, align=align, fill_color=fill)
             cx += cw
 
-    # Empty filler rows
     total_data_rows = len(items)
     for extra in range(max(0, 4 - total_data_rows)):
         ey = table_y - header_h - (total_data_rows + extra + 1) * data_h
@@ -237,7 +231,7 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
             draw_cell(c, cx, ey, cw, data_h, "", size=7.5)
             cx += cw
 
-    # GST Summary
+    # ── GST Summary ──────────────────────────────────────────────
     total_rows  = max(4, total_data_rows)
     gst_start_y = table_y - header_h - (total_rows + 1) * data_h - 3*mm
 
@@ -272,83 +266,54 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
         draw_cell(c, gst_x + gst_lbl_w, gy - gst_row_h, gst_val_w, gst_row_h,
                   val, bold=bold, size=7.5, align="right", fill_color=fc, text_color=tc)
 
-    # Amount in words
-    words_y = gst_start_y - len(gst_rows) * gst_row_h - 5*mm
-    c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(BLACK)
-    c.drawString(LEFT + 2*mm,  words_y, "Amount in Words :")
-    c.setFont("Helvetica", 7.5)
-    c.drawString(LEFT + 43*mm, words_y, amount_to_words(total_after_gst))
-
-    # ── FOOTER SECTION ───────────────────────────────────────────
-    # Divider line above footer
-    footer_top = BOTTOM + 68*mm
+    # ── FOOTER — matches reference invoice ───────────────────────
+    # Divider line
+    footer_top = BOTTOM + 52*mm
     c.setStrokeColor(RED)
     c.setLineWidth(0.8)
     c.line(LEFT, footer_top, RIGHT, footer_top)
 
-    # ── BANK DETAILS — left half of footer ───────────────────────
-    bank_x = LEFT + 2*mm
-    bank_col_w = INNER_W * 0.48
-
-    c.setFont("Helvetica-Bold", 8.5)
-    c.setFillColor(RED)
-    c.drawString(bank_x, footer_top - 6*mm, "BANK DETAILS")
-
-    c.setStrokeColor(RED)
-    c.setLineWidth(0.5)
-    # Underline the heading
-    c.line(bank_x, footer_top - 7*mm, bank_x + 30*mm, footer_top - 7*mm)
-
-    c.setFont("Helvetica-Bold", 8)
+    # ── Bank details — bottom left (same as reference) ────────────
+    c.setFont("Helvetica-Bold", 7.5)
     c.setFillColor(BLACK)
     bank_lines = [
-        ("Bank Name",   BANK_NAME),
-        ("Branch",      BANK_BRANCH),
-        ("Account No.", BANK_ACCOUNT),
-        ("IFSC Code",   BANK_IFSC),
+        f"Bank Name  :  {BANK_NAME}",
+        f"Branch       :  {BANK_BRANCH}",
+        f"Account No. :  {BANK_ACCOUNT}",
+        f"IFSC Code   :  {BANK_IFSC}",
     ]
-    for i, (label, value) in enumerate(bank_lines):
-        y = footer_top - 13*mm - i * 6*mm
-        c.setFont("Helvetica-Bold", 7.5)
-        c.setFillColor(BLACK)
-        c.drawString(bank_x, y, f"{label}  :")
-        c.setFont("Helvetica", 7.5)
-        c.drawString(bank_x + 26*mm, y, value)
+    for i, line in enumerate(bank_lines):
+        c.drawString(LEFT + 2*mm, footer_top - 6*mm - i * 5.5*mm, line)
 
-    # ── SHOP SIGNATURE — right half of footer ────────────────────
-    sig_x = LEFT + INNER_W * 0.52
-
-    c.setFont("Helvetica-Bold", 9)
-    c.setFillColor(RED)
-    c.drawCentredString(sig_x + INNER_W * 0.24, footer_top - 6*mm, "for RATNAKAR Jewellers")
-
-    # Signature lines
-    sig_line_y = footer_top - 28*mm
-    c.setStrokeColor(BLACK)
-    c.setLineWidth(0.6)
-    # Left sig line — Customer
-    c.line(LEFT + 2*mm, sig_line_y, LEFT + 55*mm, sig_line_y)
-    # Right sig line — Prop
-    c.line(RIGHT - 55*mm, sig_line_y, RIGHT - 2*mm, sig_line_y)
-
-    c.setFont("Helvetica", 7.5)
-    c.setFillColor(BLACK)
-    c.drawString(LEFT + 2*mm,       sig_line_y - 4*mm, "Customer Signature")
-    c.drawRightString(RIGHT - 2*mm, sig_line_y - 4*mm, "Prop./Auth.Signatory")
-
-    # ── TERMS — below signatures in very small font ───────────────
-    terms_y = sig_line_y - 10*mm
+    # ── Terms — below bank details, very small ────────────────────
     terms = [
         "* Gold once sold are not returnable in any case.",
         "* Interest @2% pm will be charged on the amount from the date of Invoice.",
         "* Our responsibility ceases after golds are delivered.",
         "* Disputes if any are subject to Ahmedabad Jurisdiction only.",
     ]
+    terms_start_y = footer_top - 6*mm - len(bank_lines) * 5.5*mm - 3*mm
     c.setFont("Helvetica", 5.8)
     c.setFillColor(colors.HexColor("#444444"))
     for i, term in enumerate(terms):
-        c.drawString(LEFT + 2*mm, terms_y - i * 4.5*mm, term)
+        c.drawString(LEFT + 2*mm, terms_start_y - i * 4.2*mm, term)
+
+    # ── "for RATNAKAR Jewellers" — bottom right ───────────────────
+    c.setFont("Helvetica-Bold", 9)
+    c.setFillColor(RED)
+    c.drawRightString(RIGHT - 2*mm, footer_top - 8*mm, "for RATNAKAR Jewellers")
+
+    # ── Signature lines — bottom, side by side ────────────────────
+    sig_y = BOTTOM + 18*mm
+    c.setStrokeColor(BLACK)
+    c.setLineWidth(0.6)
+    c.line(LEFT + 2*mm,   sig_y, LEFT + 60*mm,  sig_y)
+    c.line(RIGHT - 60*mm, sig_y, RIGHT - 2*mm,  sig_y)
+
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(BLACK)
+    c.drawString(LEFT + 2*mm,       sig_y - 4*mm, "Customer Signature")
+    c.drawRightString(RIGHT - 2*mm, sig_y - 4*mm, "Prop./Auth.Signatory")
 
     c.save()
     return filepath
