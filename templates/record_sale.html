@@ -51,9 +51,9 @@
             <th>Weight (g)</th>
             <th>Purity</th>
             <th>HSN</th>
-            <th>Rate/g</th>
-            <th>Making</th>
-            <th>Item Total</th>
+            <th>Rate/g (Rs)</th>
+            <th>Making (Rs)</th>
+            <th>Item Total (Rs)</th>
             <th>Remove</th>
         </tr>
         {% for i in cart %}
@@ -102,6 +102,32 @@
                 <label><strong>Buyer Phone</strong></label>
                 <input type="number" name="phone" required
                        placeholder="10 digit mobile number">
+            </div>
+
+            <div>
+                <label><strong>Buyer State</strong></label>
+                <input type="text" name="buyer_state" value="Gujarat"
+                       placeholder="e.g. Gujarat, Maharashtra">
+            </div>
+
+            <div>
+                <label><strong>Buyer GSTIN (optional)</strong></label>
+                <input type="text" name="buyer_gstin"
+                       placeholder="Leave blank if not registered">
+            </div>
+
+            <div>
+                <label><strong>Payment Method</strong></label>
+                <select name="payment_method">
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Cheque">Cheque</option>
+                </select>
+            </div>
+
+            <div>
+                <label><strong>Invoice Date</strong></label>
+                <input type="date" name="sale_date" value="{{ today }}">
             </div>
 
         </div>

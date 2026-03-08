@@ -216,12 +216,14 @@ def add_purchase():
 @login_required
 def record_sale():
     cart_items = session.get("cart", [])
-    total      = sum(
-        round((i["weight"] * i["rate_per_gram"]) + i["making_charges"], 2)
+    total = round(sum(
+        (i["weight"] * i["rate_per_gram"]) + i["making_charges"]
         for i in cart_items
-    )
-    return render_template("record_sale.html", cart=cart_items, total=total)
-    
+    ), 2)
+    today = datetime.now().strftime("%Y-%m-%d")
+    return render_template("record_sale.html", cart=cart_items, total=total, today=today)
+
+
 # ---------- VIEW PURCHASES ----------
 @app.route("/view_purchases")
 @login_required
@@ -374,6 +376,7 @@ def export_data():
     return render_template("export_data.html")
 
 
+# ---------- EXPORT TABLE ----------
 @app.route("/export/<table_name>")
 @login_required
 def export_table(table_name):
@@ -539,18 +542,22 @@ def import_data():
             message += f" {len(errors)} rows had errors and were skipped."
 
     return render_template("import_data.html", message=message, errors=errors)
+
+
 # ---------- CART ----------
 @app.route("/cart")
 @login_required
 def cart():
     cart_items = session.get("cart", [])
-    total      = sum(
-        round((i["weight"] * i["rate_per_gram"]) + i["making_charges"], 2)
+    total = round(sum(
+        (i["weight"] * i["rate_per_gram"]) + i["making_charges"]
         for i in cart_items
-    )
-    return render_template("record_sale.html", cart=cart_items, total=total)
+    ), 2)
+    today = datetime.now().strftime("%Y-%m-%d")
+    return render_template("record_sale.html", cart=cart_items, total=total, today=today)
 
 
+# ---------- ADD TO CART ----------
 @app.route("/add_to_cart", methods=["POST"])
 @login_required
 def add_to_cart():
@@ -579,29 +586,29 @@ def add_to_cart():
     if not item:
         return redirect("/cart")
 
-    # Check if item already in cart
     cart = session.get("cart", [])
     for c in cart:
         if c["stock_id"] == stock_id:
             return redirect("/cart")
 
     cart.append({
-        "stock_id":      stock_id,
-        "item":          item["ITEM"],
-        "material":      item["MATERIAL"],
-        "category":      item["CATEGORY"],
-        "weight":        item["WEIGHT"],
-        "purity":        item["PURITY"],
-        "hsn":           hsn,
-        "rate_per_gram": rate_per_gram,
+        "stock_id":       stock_id,
+        "item":           item["ITEM"],
+        "material":       item["MATERIAL"],
+        "category":       item["CATEGORY"],
+        "weight":         item["WEIGHT"],
+        "purity":         item["PURITY"],
+        "hsn":            hsn,
+        "rate_per_gram":  rate_per_gram,
         "making_charges": making_charges,
-        "item_total":    round((item["WEIGHT"] * rate_per_gram) + making_charges, 2)
+        "item_total":     round((item["WEIGHT"] * rate_per_gram) + making_charges, 2)
     })
-    session["cart"] = cart
-    session.modified  = True
+    session["cart"]  = cart
+    session.modified = True
     return redirect("/cart")
 
 
+# ---------- REMOVE FROM CART ----------
 @app.route("/remove_from_cart/<int:stock_id>")
 @login_required
 def remove_from_cart(stock_id):
@@ -611,6 +618,7 @@ def remove_from_cart(stock_id):
     return redirect("/cart")
 
 
+# ---------- COMPLETE SALE ----------
 @app.route("/complete_sale", methods=["POST"])
 @login_required
 def complete_sale():
@@ -619,8 +627,12 @@ def complete_sale():
     if not cart:
         return redirect("/cart")
 
-    buyer = request.form.get("buyer", "").strip()
-    phone = request.form.get("phone", "").strip()
+    buyer          = request.form.get("buyer", "").strip()
+    phone          = request.form.get("phone", "").strip()
+    buyer_state    = request.form.get("buyer_state", "Gujarat").strip()
+    buyer_gstin    = request.form.get("buyer_gstin", "").strip()
+    payment_method = request.form.get("payment_method", "Cash").strip()
+    sale_date_raw  = request.form.get("sale_date", "").strip()
 
     if not buyer:
         return redirect("/cart")
@@ -628,7 +640,18 @@ def complete_sale():
     if not phone.isdigit() or len(phone) != 10:
         return redirect("/cart")
 
-    sale_date = datetime.now().strftime("%Y-%m-%d")
+    if sale_date_raw:
+        try:
+            sale_date_obj     = datetime.strptime(sale_date_raw, "%Y-%m-%d")
+            sale_date_display = sale_date_obj.strftime("%d-%m-%Y")
+            sale_date_db      = sale_date_obj.strftime("%Y-%m-%d")
+        except ValueError:
+            sale_date_display = datetime.now().strftime("%d-%m-%Y")
+            sale_date_db      = datetime.now().strftime("%Y-%m-%d")
+    else:
+        sale_date_display = datetime.now().strftime("%d-%m-%Y")
+        sale_date_db      = datetime.now().strftime("%Y-%m-%d")
+
     conn = get_db()
     cur  = conn.cursor()
 
@@ -640,7 +663,7 @@ def complete_sale():
             VALUES (?,?,?,?,?,?,?,?)
         """, (
             i["item"], i["material"], i["category"],
-            i["weight"], i["purity"], buyer, phone, sale_date
+            i["weight"], i["purity"], buyer, phone, sale_date_db
         ))
         sale_ids.append(cur.lastrowid)
         cur.execute("DELETE FROM stock WHERE ID=?", (i["stock_id"],))
@@ -648,19 +671,21 @@ def complete_sale():
     conn.commit()
     conn.close()
 
-    # Generate invoice
     try:
         invoice_path = generate_invoice(
             sale_id        = sale_ids[0],
             buyer_name     = buyer,
             buyer_phone    = phone,
-            sale_date      = datetime.now().strftime("%d-%m-%Y"),
+            buyer_state    = buyer_state,
+            buyer_gstin    = buyer_gstin,
+            payment_method = payment_method,
+            sale_date      = sale_date_display,
             items          = cart
         )
         with open(invoice_path, "rb") as f:
             pdf_data = f.read()
         os.remove(invoice_path)
-        session["cart"] = []
+        session["cart"]  = []
         session.modified = True
         filename = os.path.basename(invoice_path)
         return Response(
@@ -670,9 +695,11 @@ def complete_sale():
         )
 
     except Exception as e:
-        session["cart"] = []
+        session["cart"]  = []
         session.modified = True
         return f"Sale recorded but invoice failed: {str(e)}"
+
+
 # ---------- MAIN ----------
 if __name__ == "__main__":
     init_db()
