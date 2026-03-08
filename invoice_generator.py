@@ -280,67 +280,81 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
     c.setFont("Helvetica", 7.5)
     c.drawString(LEFT + 43*mm, words_y, amount_to_words(total_after_gst))
 
-    # Footer
-    footer_y = BOTTOM + 46*mm
+    # ── FOOTER SECTION ───────────────────────────────────────────
+    # Divider line above footer
+    footer_top = BOTTOM + 68*mm
     c.setStrokeColor(RED)
     c.setLineWidth(0.8)
-    c.line(LEFT, footer_y, RIGHT, footer_y)
+    c.line(LEFT, footer_top, RIGHT, footer_top)
 
-    # Bank details box
-    bank_box_w = 80*mm
-    bank_box_h = 28*mm
+    # ── BANK DETAILS — left half of footer ───────────────────────
+    bank_x = LEFT + 2*mm
+    bank_col_w = INNER_W * 0.48
+
+    c.setFont("Helvetica-Bold", 8.5)
+    c.setFillColor(RED)
+    c.drawString(bank_x, footer_top - 6*mm, "BANK DETAILS")
+
     c.setStrokeColor(RED)
     c.setLineWidth(0.5)
-    c.rect(LEFT, footer_y - bank_box_h, bank_box_w, bank_box_h)
+    # Underline the heading
+    c.line(bank_x, footer_top - 7*mm, bank_x + 30*mm, footer_top - 7*mm)
 
     c.setFont("Helvetica-Bold", 8)
-    c.setFillColor(RED)
-    c.drawCentredString(LEFT + bank_box_w / 2, footer_y - 6*mm, "BANK DETAILS")
-
-    c.setFont("Helvetica-Bold", 7.5)
     c.setFillColor(BLACK)
     bank_lines = [
-        f"Bank Name   :  {BANK_NAME}",
-        f"Branch       :  {BANK_BRANCH}",
-        f"Account No. :  {BANK_ACCOUNT}",
-        f"IFSC Code   :  {BANK_IFSC}",
+        ("Bank Name",   BANK_NAME),
+        ("Branch",      BANK_BRANCH),
+        ("Account No.", BANK_ACCOUNT),
+        ("IFSC Code",   BANK_IFSC),
     ]
-    for i, line in enumerate(bank_lines):
-        c.drawString(LEFT + 3*mm, footer_y - 12*mm - i * 5*mm, line)
+    for i, (label, value) in enumerate(bank_lines):
+        y = footer_top - 13*mm - i * 6*mm
+        c.setFont("Helvetica-Bold", 7.5)
+        c.setFillColor(BLACK)
+        c.drawString(bank_x, y, f"{label}  :")
+        c.setFont("Helvetica", 7.5)
+        c.drawString(bank_x + 26*mm, y, value)
 
-    # Shop signature
+    # ── SHOP SIGNATURE — right half of footer ────────────────────
+    sig_x = LEFT + INNER_W * 0.52
+
     c.setFont("Helvetica-Bold", 9)
     c.setFillColor(RED)
-    c.drawCentredString(W / 2 + 20*mm, footer_y - 8*mm, "for RATNAKAR Jewellers")
+    c.drawCentredString(sig_x + INNER_W * 0.24, footer_top - 6*mm, "for RATNAKAR Jewellers")
 
-    # Terms
-    c.setFont("Helvetica", 6.3)
+    # Signature lines
+    sig_line_y = footer_top - 28*mm
+    c.setStrokeColor(BLACK)
+    c.setLineWidth(0.6)
+    # Left sig line — Customer
+    c.line(LEFT + 2*mm, sig_line_y, LEFT + 55*mm, sig_line_y)
+    # Right sig line — Prop
+    c.line(RIGHT - 55*mm, sig_line_y, RIGHT - 2*mm, sig_line_y)
+
+    c.setFont("Helvetica", 7.5)
     c.setFillColor(BLACK)
+    c.drawString(LEFT + 2*mm,       sig_line_y - 4*mm, "Customer Signature")
+    c.drawRightString(RIGHT - 2*mm, sig_line_y - 4*mm, "Prop./Auth.Signatory")
+
+    # ── TERMS — below signatures in very small font ───────────────
+    terms_y = sig_line_y - 10*mm
     terms = [
         "* Gold once sold are not returnable in any case.",
         "* Interest @2% pm will be charged on the amount from the date of Invoice.",
         "* Our responsibility ceases after golds are delivered.",
         "* Disputes if any are subject to Ahmedabad Jurisdiction only.",
     ]
+    c.setFont("Helvetica", 5.8)
+    c.setFillColor(colors.HexColor("#444444"))
     for i, term in enumerate(terms):
-        c.drawString(LEFT + bank_box_w + 4*mm, footer_y - 14*mm - i * 5*mm, term)
-
-    # Signatures
-    c.setStrokeColor(BLACK)
-    c.setLineWidth(0.5)
-    sig_y = BOTTOM + 14*mm
-    c.line(LEFT + 2*mm,   sig_y, LEFT + 55*mm,  sig_y)
-    c.line(RIGHT - 55*mm, sig_y, RIGHT - 2*mm,  sig_y)
-
-    c.setFont("Helvetica", 7.5)
-    c.setFillColor(BLACK)
-    c.drawString(LEFT + 2*mm,       sig_y - 4*mm, "Customer Signature")
-    c.drawRightString(RIGHT - 2*mm, sig_y - 4*mm, "Prop./Auth.Signatory")
+        c.drawString(LEFT + 2*mm, terms_y - i * 4.5*mm, term)
 
     c.save()
     return filepath
 
 
+# ── Amount to words (Indian format) ─────────────────────────────
 def amount_to_words(amount):
     ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
             "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen",
