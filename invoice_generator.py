@@ -111,7 +111,7 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
 
     cur_y = TOP
 
-    # ── TAX INVOICE centered at top ───────────────────────────────
+    # ── TAX INVOICE ───────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(RED)
     c.drawCentredString(W / 2, cur_y - 6*mm, "TAX INVOICE")
@@ -231,7 +231,7 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
             draw_cell(c, cx, ey, cw, data_h, "", size=7.5)
             cx += cw
 
-    # ── GST Summary ──────────────────────────────────────────────
+    # ── GST Summary (right side, matches reference) ───────────────
     total_rows  = max(4, total_data_rows)
     gst_start_y = table_y - header_h - (total_rows + 1) * data_h - 3*mm
 
@@ -242,78 +242,119 @@ def generate_invoice(sale_id, buyer_name="", buyer_phone="",
 
     if is_gujarat:
         gst_rows = [
-            ("TOTAL Before GST", f"Rs. {taxable_amount:.2f}",  False),
-            ("Add SGST @ 1.5%",  f"Rs. {sgst_amount:.2f}",     False),
-            ("Add CGST @ 1.5%",  f"Rs. {cgst_amount:.2f}",     False),
-            ("Add IGST @ 3.0%",  "Rs. 0.00",                   False),
-            ("TOTAL After GST",  f"Rs. {total_after_gst:.2f}", True),
+            ("TOTAL Before GST",          f"Rs. {taxable_amount:.2f}",  False),
+            ("Add SGST @ 1.5%",           f"Rs. {sgst_amount:.2f}",     False),
+            ("Add CGST @ 1.5%",           f"Rs. {cgst_amount:.2f}",     False),
+            ("Add IGST @ 3.0%",           "Rs. 0.00",                   False),
+            ("TOTAL After GST",           f"Rs. {total_after_gst:.2f}", True),
+            ("GST Payable on\nRev. Charge", "N",                        False),
         ]
     else:
         gst_rows = [
-            ("TOTAL Before GST", f"Rs. {taxable_amount:.2f}",  False),
-            ("Add SGST @ 1.5%",  "Rs. 0.00",                   False),
-            ("Add CGST @ 1.5%",  "Rs. 0.00",                   False),
-            ("Add IGST @ 3.0%",  f"Rs. {igst_amount:.2f}",     False),
-            ("TOTAL After GST",  f"Rs. {total_after_gst:.2f}", True),
+            ("TOTAL Before GST",          f"Rs. {taxable_amount:.2f}",  False),
+            ("Add SGST @ 1.5%",           "Rs. 0.00",                   False),
+            ("Add CGST @ 1.5%",           "Rs. 0.00",                   False),
+            ("Add IGST @ 3.0%",           f"Rs. {igst_amount:.2f}",     False),
+            ("TOTAL After GST",           f"Rs. {total_after_gst:.2f}", True),
+            ("GST Payable on\nRev. Charge", "N",                        False),
         ]
 
     for i, (lbl, val, bold) in enumerate(gst_rows):
         gy = gst_start_y - i * gst_row_h
         fc = RED if bold else None
         tc = WHITE if bold else BLACK
-        draw_cell(c, gst_x,              gy - gst_row_h, gst_lbl_w, gst_row_h,
-                  lbl, bold=bold, size=7.5, fill_color=fc, text_color=tc)
+        # Handle two-line label for last row
+        if "\n" in lbl:
+            if fc:
+                c.setFillColor(fc)
+                c.rect(gst_x, gy - gst_row_h, gst_lbl_w, gst_row_h, fill=1, stroke=0)
+            c.setStrokeColor(RED)
+            c.setLineWidth(0.5)
+            c.rect(gst_x, gy - gst_row_h, gst_lbl_w, gst_row_h, fill=0, stroke=1)
+            c.setFillColor(tc)
+            c.setFont("Helvetica-Bold" if bold else "Helvetica", 6.5)
+            lines = lbl.split("\n")
+            c.drawString(gst_x + 2*mm, gy - gst_row_h + gst_row_h * 0.62, lines[0])
+            c.drawString(gst_x + 2*mm, gy - gst_row_h + gst_row_h * 0.25, lines[1])
+        else:
+            draw_cell(c, gst_x, gy - gst_row_h, gst_lbl_w, gst_row_h,
+                      lbl, bold=bold, size=7.5, fill_color=fc, text_color=tc)
         draw_cell(c, gst_x + gst_lbl_w, gy - gst_row_h, gst_val_w, gst_row_h,
                   val, bold=bold, size=7.5, align="right", fill_color=fc, text_color=tc)
 
-    # ── FOOTER — matches reference invoice ───────────────────────
+    # ── FOOTER — matches reference exactly ───────────────────────
+    # Calculate footer top based on where GST table ends
+    footer_top = gst_start_y - len(gst_rows) * gst_row_h - 4*mm
+
     # Divider line
-    footer_top = BOTTOM + 52*mm
     c.setStrokeColor(RED)
     c.setLineWidth(0.8)
     c.line(LEFT, footer_top, RIGHT, footer_top)
 
-    # ── Bank details — bottom left (same as reference) ────────────
+    # ── LEFT SIDE: Amount in words line ──────────────────────────
     c.setFont("Helvetica-Bold", 7.5)
     c.setFillColor(BLACK)
-    bank_lines = [
-        f"Bank Name  :  {BANK_NAME}",
-        f"Branch       :  {BANK_BRANCH}",
-        f"Account No. :  {BANK_ACCOUNT}",
-        f"IFSC Code   :  {BANK_IFSC}",
-    ]
-    for i, line in enumerate(bank_lines):
-        c.drawString(LEFT + 2*mm, footer_top - 6*mm - i * 5.5*mm, line)
+    c.drawString(LEFT + 2*mm, footer_top - 5*mm, "Amount in words")
+    # Underline after text
+    c.setStrokeColor(BLACK)
+    c.setLineWidth(0.4)
+    c.line(LEFT + 34*mm, footer_top - 5.5*mm, LEFT + INNER_W * 0.55, footer_top - 5.5*mm)
 
-    # ── Terms — below bank details, very small ────────────────────
+    # Divider line below amount in words
+    c.setStrokeColor(RED)
+    c.setLineWidth(0.5)
+    c.line(LEFT, footer_top - 9*mm, LEFT + INNER_W * 0.55, footer_top - 9*mm)
+
+    # ── Bank details ─────────────────────────────────────────────
+    c.setFont("Helvetica-Bold", 7.5)
+    c.setFillColor(BLACK)
+    bank_y = footer_top - 14*mm
+    c.drawString(LEFT + 2*mm, bank_y,           f"Bank Name  :  {BANK_NAME}")
+    c.drawString(LEFT + 2*mm, bank_y - 5*mm,    f"Branch       :  {BANK_BRANCH}")
+    c.drawString(LEFT + 2*mm, bank_y - 10*mm,   f"Account No. :  {BANK_ACCOUNT}")
+    c.drawString(LEFT + 2*mm, bank_y - 15*mm,   f"IFSC Code   :  {BANK_IFSC}")
+
+    # ── Terms — very small font below bank details ────────────────
     terms = [
         "* Gold once sold are not returnable in any case.",
         "* Interest @2% pm will be charged on the amount from the date of Invoice.",
         "* Our responsibility ceases after golds are delivered.",
         "* Disputes if any are subject to Ahmedabad Jurisdiction only.",
     ]
-    terms_start_y = footer_top - 6*mm - len(bank_lines) * 5.5*mm - 3*mm
-    c.setFont("Helvetica", 5.8)
-    c.setFillColor(colors.HexColor("#444444"))
+    terms_y = bank_y - 20*mm
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(colors.HexColor("#333333"))
     for i, term in enumerate(terms):
-        c.drawString(LEFT + 2*mm, terms_start_y - i * 4.2*mm, term)
+        c.drawString(LEFT + 2*mm, terms_y - i * 4*mm, term)
 
-    # ── "for RATNAKAR Jewellers" — bottom right ───────────────────
+    # ── RIGHT SIDE: for RATNAKAR Jewellers ───────────────────────
     c.setFont("Helvetica-Bold", 9)
     c.setFillColor(RED)
-    c.drawRightString(RIGHT - 2*mm, footer_top - 8*mm, "for RATNAKAR Jewellers")
+    c.drawRightString(RIGHT - 2*mm, footer_top - 5*mm, "for RATNAKAR Jewellers")
 
-    # ── Signature lines — bottom, side by side ────────────────────
-    sig_y = BOTTOM + 18*mm
-    c.setStrokeColor(BLACK)
-    c.setLineWidth(0.6)
-    c.line(LEFT + 2*mm,   sig_y, LEFT + 60*mm,  sig_y)
-    c.line(RIGHT - 60*mm, sig_y, RIGHT - 2*mm,  sig_y)
+    # Vertical divider between left and right in footer
+    mid_x = LEFT + INNER_W * 0.55
+    c.setStrokeColor(RED)
+    c.setLineWidth(0.5)
+    c.line(mid_x, footer_top, mid_x, BOTTOM + 2*mm)
 
-    c.setFont("Helvetica", 7.5)
+    # ── Signature labels ─────────────────────────────────────────
+    sig_label_y = footer_top - 22*mm
+    c.setFont("Helvetica", 8)
     c.setFillColor(BLACK)
-    c.drawString(LEFT + 2*mm,       sig_y - 4*mm, "Customer Signature")
-    c.drawRightString(RIGHT - 2*mm, sig_y - 4*mm, "Prop./Auth.Signatory")
+    # Customer signature — center of right half
+    right_half_center = mid_x + (RIGHT - mid_x) * 0.3
+    c.drawCentredString(right_half_center, sig_label_y, "Customer Signature")
+
+    # Prop signature — far right
+    c.drawRightString(RIGHT - 2*mm, sig_label_y, "Prop./Auth.Signatory")
+
+    # Signature lines above labels
+    sig_line_y = sig_label_y + 6*mm
+    c.setStrokeColor(BLACK)
+    c.setLineWidth(0.5)
+    c.line(mid_x + 3*mm,  sig_line_y, mid_x + 50*mm, sig_line_y)
+    c.line(RIGHT - 52*mm, sig_line_y, RIGHT - 2*mm,  sig_line_y)
 
     c.save()
     return filepath
