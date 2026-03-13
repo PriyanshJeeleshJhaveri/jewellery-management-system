@@ -7,6 +7,7 @@
     <div class="table-wrapper">
     <table>
         <tr>
+            <th>ID</th>
             <th>Item</th>
             <th>Material</th>
             <th>Category</th>
@@ -15,9 +16,11 @@
             <th>Buyer</th>
             <th>Phone</th>
             <th>Sale Date</th>
+            <th>Actions</th>
         </tr>
         {% for s in sales %}
         <tr>
+            <td>{{ s.ID }}</td>
             <td>{{ s.ITEM }}</td>
             <td>{{ s.MATERIAL }}</td>
             <td>{{ s.CATEGORY }}</td>
@@ -26,10 +29,19 @@
             <td>{{ s.BUYER }}</td>
             <td>{{ s.PHONE }}</td>
             <td>{{ s.SALE_DATE }}</td>
+            <td>
+                {% if s.HAS_INVOICE %}
+                <a href="/reprint_invoice/{{ s.ID }}" class="btn">🖨️ Reprint</a>
+                {% endif %}
+                <form method="POST" action="/delete_sale/{{ s.ID }}" style="display:inline;"
+                      onsubmit="return confirm('Delete sale ID {{ s.ID }} for {{ s.BUYER }}? This cannot be undone.');">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
         {% if not sales %}
-        <tr><td colspan="8">No sales records found.</td></tr>
+        <tr><td colspan="10">No sales records found.</td></tr>
         {% endif %}
     </table>
     </div>

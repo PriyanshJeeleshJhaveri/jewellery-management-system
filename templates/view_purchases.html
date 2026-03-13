@@ -16,6 +16,7 @@
             <th>Seller</th>
             <th>Phone</th>
             <th>Purchase Date</th>
+            <th>Actions</th>
         </tr>
         {% for p in purchases %}
         <tr>
@@ -28,10 +29,16 @@
             <td>{{ p.SELLER }}</td>
             <td>{{ p.PHONE }}</td>
             <td>{{ p.PURCHASE_DATE }}</td>
+            <td>
+                <form method="POST" action="/delete_purchase/{{ p.ID }}" style="display:inline;"
+                      onsubmit="return confirm('Delete purchase ID {{ p.ID }} for {{ p.ITEM }}? This cannot be undone.');">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
         {% if not purchases %}
-        <tr><td colspan="9">No purchase records found.</td></tr>
+        <tr><td colspan="10">No purchase records found.</td></tr>
         {% endif %}
     </table>
     </div>

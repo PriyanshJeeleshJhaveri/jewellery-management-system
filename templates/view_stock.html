@@ -15,6 +15,7 @@
             <th>Weight (g)</th>
             <th>Purity</th>
             <th>Purchase Date</th>
+            <th>Actions</th>
         </tr>
         {% for s in stock %}
         <tr>
@@ -25,6 +26,13 @@
             <td>{{ s.WEIGHT }}</td>
             <td>{{ s.PURITY }}</td>
             <td>{{ s.PURCHASE_DATE }}</td>
+            <td>
+                <a href="/edit_stock/{{ s.ID }}" class="btn">✏️ Edit</a>
+                <form method="POST" action="/delete_stock/{{ s.ID }}" style="display:inline;"
+                      onsubmit="return confirm('Delete {{ s.ITEM }} (ID: {{ s.ID }})? This cannot be undone.');">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </table>

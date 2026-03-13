@@ -7,6 +7,7 @@ import sqlite3
 import os
 import csv
 import io
+import json
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "local-dev-only")
@@ -69,6 +70,18 @@ def init_db():
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
             USERNAME TEXT NOT NULL UNIQUE,
             PASSWORD TEXT NOT NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS invoice_data (
+            SALE_ID INTEGER PRIMARY KEY,
+            BUYER_NAME TEXT NOT NULL,
+            BUYER_PHONE TEXT NOT NULL,
+            BUYER_STATE TEXT NOT NULL,
+            BUYER_GSTIN TEXT,
+            PAYMENT_METHOD TEXT NOT NULL,
+            SALE_DATE TEXT NOT NULL,
+            ITEMS_JSON TEXT NOT NULL
         )
     """)
     hashed_password = generate_password_hash('admin123')
@@ -244,9 +257,11 @@ def view_purchases():
 def view_sales():
     conn = get_db()
     sales = conn.execute("""
-        SELECT ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY,
-               BUYER, PHONE, SALE_DATE
-        FROM sale
+        SELECT s.ID, s.ITEM, s.MATERIAL, s.CATEGORY, s.WEIGHT, s.PURITY,
+               s.BUYER, s.PHONE, s.SALE_DATE,
+               CASE WHEN i.SALE_ID IS NOT NULL THEN 1 ELSE 0 END as HAS_INVOICE
+        FROM sale s
+        LEFT JOIN invoice_data i ON s.ID = i.SALE_ID
     """).fetchall()
     conn.close()
     return render_template("view_sales.html", sales=sales)
@@ -668,6 +683,16 @@ def complete_sale():
         sale_ids.append(cur.lastrowid)
         cur.execute("DELETE FROM stock WHERE ID=?", (i["stock_id"],))
 
+    # Save full invoice data for reprinting later
+    cur.execute("""
+        INSERT OR REPLACE INTO invoice_data
+        (SALE_ID, BUYER_NAME, BUYER_PHONE, BUYER_STATE, BUYER_GSTIN, PAYMENT_METHOD, SALE_DATE, ITEMS_JSON)
+        VALUES (?,?,?,?,?,?,?,?)
+    """, (
+        sale_ids[0], buyer, phone, buyer_state, buyer_gstin,
+        payment_method, sale_date_display, json.dumps(cart)
+    ))
+
     conn.commit()
     conn.close()
 
@@ -699,6 +724,112 @@ def complete_sale():
         session.modified = True
         return f"Sale recorded but invoice failed: {str(e)}"
 
+
+# ---------- REPRINT INVOICE ----------
+@app.route("/reprint_invoice/<int:sale_id>")
+@login_required
+def reprint_invoice(sale_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM invoice_data WHERE SALE_ID=?", (sale_id,)
+    ).fetchone()
+    conn.close()
+
+    if not row:
+        return "Invoice data not found for this sale.", 404
+
+    items = json.loads(row["ITEMS_JSON"])
+
+    try:
+        invoice_path = generate_invoice(
+            sale_id        = sale_id,
+            buyer_name     = row["BUYER_NAME"],
+            buyer_phone    = row["BUYER_PHONE"],
+            buyer_state    = row["BUYER_STATE"],
+            buyer_gstin    = row["BUYER_GSTIN"],
+            payment_method = row["PAYMENT_METHOD"],
+            sale_date      = row["SALE_DATE"],
+            items          = items
+        )
+        with open(invoice_path, "rb") as f:
+            pdf_data = f.read()
+        os.remove(invoice_path)
+        filename = os.path.basename(invoice_path)
+        return Response(
+            pdf_data,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        return f"Could not generate invoice: {str(e)}"
+
+
+# ---------- DELETE SALE ----------
+@app.route("/delete_sale/<int:sale_id>", methods=["POST"])
+@login_required
+def delete_sale(sale_id):
+    conn = get_db()
+    conn.execute("DELETE FROM sale WHERE ID=?", (sale_id,))
+    conn.execute("DELETE FROM invoice_data WHERE SALE_ID=?", (sale_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/view_sales")
+
+
+# ---------- DELETE PURCHASE ----------
+@app.route("/delete_purchase/<int:purchase_id>", methods=["POST"])
+@login_required
+def delete_purchase(purchase_id):
+    conn = get_db()
+    conn.execute("DELETE FROM purchase WHERE ID=?", (purchase_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/view_purchases")
+# ---------- EDIT STOCK ----------
+@app.route("/edit_stock/<int:stock_id>", methods=["GET", "POST"])
+@login_required
+def edit_stock(stock_id):
+    conn = get_db()
+    item = conn.execute(
+        "SELECT * FROM stock WHERE ID=?", (stock_id,)
+    ).fetchone()
+
+    if not item:
+        conn.close()
+        return redirect("/view_stock")
+
+    error = None
+
+    if request.method == "POST":
+        try:
+            new_item     = request.form["item"].strip()
+            new_material = request.form["material"].strip().upper()
+            new_category = request.form["category"].strip().upper()
+            new_weight   = float(request.form["weight"])
+            new_purity   = float(request.form["purity"])
+        except (ValueError, KeyError):
+            error = "Invalid input. Please check all fields."
+            return render_template("edit_stock.html", item=item, error=error)
+
+        if new_weight <= 0 or new_purity <= 0:
+            error = "Weight and Purity must be positive numbers."
+            return render_template("edit_stock.html", item=item, error=error)
+
+        if not new_item or not new_material or not new_category:
+            error = "All fields are required."
+            return render_template("edit_stock.html", item=item, error=error)
+
+        conn.execute("""
+            UPDATE stock
+            SET ITEM=?, MATERIAL=?, CATEGORY=?, WEIGHT=?, PURITY=?
+            WHERE ID=?
+        """, (new_item, new_material, new_category, new_weight, new_purity, stock_id))
+        conn.commit()
+        conn.close()
+        return redirect("/view_stock")
+
+    conn.close()
+    return render_template("edit_stock.html", item=item, error=error)
 
 # ---------- MAIN ----------
 if __name__ == "__main__":
