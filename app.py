@@ -84,6 +84,20 @@ def init_db():
             ITEMS_JSON TEXT NOT NULL
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            SALE_ID INTEGER NOT NULL,
+            BUYER_NAME TEXT NOT NULL,
+            BUYER_PHONE TEXT NOT NULL,
+            TOTAL_AMOUNT REAL NOT NULL,
+            PAID_AMOUNT REAL NOT NULL,
+            DUE_AMOUNT REAL NOT NULL,
+            SALE_DATE TEXT NOT NULL,
+            LAST_PAYMENT_DATE TEXT NOT NULL,
+            STATUS TEXT NOT NULL DEFAULT 'Pending'
+        )
+    """)
     hashed_password = generate_password_hash('admin123')
     cur.execute(
         "INSERT OR IGNORE INTO users (USERNAME, PASSWORD) VALUES (?, ?)",
@@ -667,6 +681,13 @@ def complete_sale():
         sale_date_display = datetime.now().strftime("%d-%m-%Y")
         sale_date_db      = datetime.now().strftime("%Y-%m-%d")
 
+    # Payment info
+    payment_type = request.form.get("payment_type", "full").strip()
+    try:
+        paid_now = float(request.form.get("paid_amount", 0))
+    except ValueError:
+        paid_now = 0.0
+
     conn = get_db()
     cur  = conn.cursor()
 
@@ -683,7 +704,7 @@ def complete_sale():
         sale_ids.append(cur.lastrowid)
         cur.execute("DELETE FROM stock WHERE ID=?", (i["stock_id"],))
 
-    # Save full invoice data for reprinting later
+    # Save full invoice data for reprinting
     cur.execute("""
         INSERT OR REPLACE INTO invoice_data
         (SALE_ID, BUYER_NAME, BUYER_PHONE, BUYER_STATE, BUYER_GSTIN, PAYMENT_METHOD, SALE_DATE, ITEMS_JSON)
@@ -691,6 +712,31 @@ def complete_sale():
     """, (
         sale_ids[0], buyer, phone, buyer_state, buyer_gstin,
         payment_method, sale_date_display, json.dumps(cart)
+    ))
+
+    # Calculate totals for payment tracking
+    taxable_amount = round(sum(i["item_total"] for i in cart), 2)
+    is_gujarat = buyer_state.strip().upper() == "GUJARAT"
+    if is_gujarat:
+        total_amount = round(taxable_amount * 1.03, 2)
+    else:
+        total_amount = round(taxable_amount * 1.03, 2)
+
+    if payment_type == "full":
+        paid_amount = total_amount
+    else:
+        paid_amount = round(min(paid_now, total_amount), 2)
+
+    due_amount = round(total_amount - paid_amount, 2)
+    status     = "Cleared" if due_amount <= 0 else "Pending"
+
+    cur.execute("""
+        INSERT INTO payments
+        (SALE_ID, BUYER_NAME, BUYER_PHONE, TOTAL_AMOUNT, PAID_AMOUNT, DUE_AMOUNT, SALE_DATE, LAST_PAYMENT_DATE, STATUS)
+        VALUES (?,?,?,?,?,?,?,?,?)
+    """, (
+        sale_ids[0], buyer, phone, total_amount,
+        paid_amount, due_amount, sale_date_db, sale_date_db, status
     ))
 
     conn.commit()
@@ -723,6 +769,58 @@ def complete_sale():
         session["cart"]  = []
         session.modified = True
         return f"Sale recorded but invoice failed: {str(e)}"
+
+# ---------- DUE PAYMENTS ----------
+@app.route("/due_payments")
+@login_required
+def due_payments():
+    conn = get_db()
+    payments = conn.execute("""
+        SELECT * FROM payments ORDER BY STATUS ASC, SALE_DATE DESC
+    """).fetchall()
+    conn.close()
+    return render_template("due_payments.html", payments=payments)
+
+
+# ---------- ADD PAYMENT ----------
+@app.route("/add_payment/<int:payment_id>", methods=["POST"])
+@login_required
+def add_payment(payment_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM payments WHERE ID=?", (payment_id,)
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return redirect("/due_payments")
+
+    try:
+        amount = float(request.form.get("amount", 0))
+    except ValueError:
+        conn.close()
+        return redirect("/due_payments")
+
+    if amount <= 0:
+        conn.close()
+        return redirect("/due_payments")
+
+    new_paid = round(row["PAID_AMOUNT"] + amount, 2)
+    new_due  = round(row["TOTAL_AMOUNT"] - new_paid, 2)
+    if new_due < 0:
+        new_due  = 0
+        new_paid = row["TOTAL_AMOUNT"]
+    status   = "Cleared" if new_due <= 0 else "Pending"
+    today    = datetime.now().strftime("%Y-%m-%d")
+
+    conn.execute("""
+        UPDATE payments
+        SET PAID_AMOUNT=?, DUE_AMOUNT=?, LAST_PAYMENT_DATE=?, STATUS=?
+        WHERE ID=?
+    """, (new_paid, new_due, today, status, payment_id))
+    conn.commit()
+    conn.close()
+    return redirect("/due_payments")
 
 
 # ---------- REPRINT INVOICE ----------
@@ -771,6 +869,7 @@ def delete_sale(sale_id):
     conn = get_db()
     conn.execute("DELETE FROM sale WHERE ID=?", (sale_id,))
     conn.execute("DELETE FROM invoice_data WHERE SALE_ID=?", (sale_id,))
+    conn.execute("DELETE FROM payments WHERE SALE_ID=?", (sale_id,))
     conn.commit()
     conn.close()
     return redirect("/view_sales")
@@ -785,6 +884,7 @@ def delete_purchase(purchase_id):
     conn.commit()
     conn.close()
     return redirect("/view_purchases")
+
 # ---------- EDIT STOCK ----------
 @app.route("/edit_stock/<int:stock_id>", methods=["GET", "POST"])
 @login_required

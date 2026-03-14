@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">💳 Due Payments</div>
+
+<div class="card">
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Sale ID</th>
+            <th>Buyer</th>
+            <th>Phone</th>
+            <th>Sale Date</th>
+            <th>Total (Rs)</th>
+            <th>Paid (Rs)</th>
+            <th>Due (Rs)</th>
+            <th>Last Payment</th>
+            <th>Status</th>
+            <th>Add Payment</th>
+        </tr>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.SALE_ID }}</td>
+            <td>{{ p.BUYER_NAME }}</td>
+            <td>{{ p.BUYER_PHONE }}</td>
+            <td>{{ p.SALE_DATE }}</td>
+            <td>{{ "%.2f"|format(p.TOTAL_AMOUNT) }}</td>
+            <td>{{ "%.2f"|format(p.PAID_AMOUNT) }}</td>
+            <td><strong>{{ "%.2f"|format(p.DUE_AMOUNT) }}</strong></td>
+            <td>{{ p.LAST_PAYMENT_DATE }}</td>
+            <td>
+                {% if p.STATUS == 'Cleared' %}
+                <span style="color:green;font-weight:bold;">✅ Cleared</span>
+                {% else %}
+                <span style="color:red;font-weight:bold;">⏳ Pending</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.STATUS == 'Pending' %}
+                <form method="POST" action="/add_payment/{{ p.ID }}" style="display:flex;gap:6px;">
+                    <input type="number" name="amount" step="0.01" min="0.01"
+                           placeholder="Amount" style="width:100px;">
+                    <button type="submit">➕ Pay</button>
+                </form>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        {% if not payments %}
+        <tr><td colspan="10">No payment records found.</td></tr>
+        {% endif %}
+    </table>
+    </div>
+</div>
+
+{% endblock %}

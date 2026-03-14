@@ -130,6 +130,20 @@
                 <input type="date" name="sale_date" value="{{ today }}">
             </div>
 
+            <div>
+                <label><strong>Payment Type</strong></label>
+                <select name="payment_type" id="payment_type" onchange="togglePartial()">
+                    <option value="full">Full Payment</option>
+                    <option value="partial">Partial Payment</option>
+                </select>
+            </div>
+
+            <div id="paid_amount_div" style="display:none;">
+                <label><strong>Amount Paid Now (Rs)</strong></label>
+                <input type="number" name="paid_amount" id="paid_amount"
+                       step="0.01" min="0" placeholder="Enter amount paid now">
+            </div>
+
         </div>
         <button type="submit" class="btn"
                 onclick="return confirm('Complete sale and download invoice?')">
@@ -147,5 +161,20 @@
     </p>
 </div>
 {% endif %}
+
+<script>
+function togglePartial() {
+    var type = document.getElementById('payment_type').value;
+    var div  = document.getElementById('paid_amount_div');
+    var inp  = document.getElementById('paid_amount');
+    if (type === 'partial') {
+        div.style.display = 'block';
+        inp.required = true;
+    } else {
+        div.style.display = 'none';
+        inp.required = false;
+    }
+}
+</script>
 
 {% endblock %}
