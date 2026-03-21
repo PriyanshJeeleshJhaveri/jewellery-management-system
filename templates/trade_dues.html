@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">🔄 Trade Dues</div>
+
+<div class="card">
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Seller</th>
+            <th>Phone</th>
+            <th>Purchase Date</th>
+            <th>Material</th>
+            <th>Agreed (g)</th>
+            <th>Given (g)</th>
+            <th>Due (g)</th>
+            <th>Last Update</th>
+            <th>Status</th>
+            <th>Settle</th>
+        </tr>
+        {% for d in dues %}
+        <tr>
+            <td>{{ d.ID }}</td>
+            <td>{{ d.SELLER_NAME }}</td>
+            <td>{{ d.SELLER_PHONE }}</td>
+            <td>{{ d.PURCHASE_DATE }}</td>
+            <td>{{ d.MATERIAL }}</td>
+            <td>{{ d.AGREED_WEIGHT }}</td>
+            <td>{{ d.GIVEN_WEIGHT }}</td>
+            <td><strong>{{ d.DUE_WEIGHT }}</strong></td>
+            <td>{{ d.LAST_UPDATE }}</td>
+            <td>
+                {% if d.STATUS == 'Cleared' %}
+                <span style="color:green;font-weight:bold;">✅ Cleared</span>
+                {% else %}
+                <span style="color:red;font-weight:bold;">⏳ Pending</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if d.STATUS == 'Pending' %}
+                <form method="POST" action="/settle_trade/{{ d.ID }}" style="display:flex;gap:6px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="number" name="weight" step="0.001" min="0.001"
+                           placeholder="Weight (g)" style="width:100px;">
+                    <button type="submit">➕ Give</button>
+                </form>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        {% if not dues %}
+        <tr><td colspan="11">No trade dues found.</td></tr>
+        {% endif %}
+    </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📂 Import Data</div>
+
+<!-- RESTORE GUIDE -->
+<div class="card" style="border-left:4px solid #2a7a2a;">
+    <h3 style="color:#2a7a2a;">♻️ Restoring from a Backup?</h3>
+    <p style="margin-bottom:10px;">If you downloaded a backup from <strong>💾 Download Full Backup</strong>, here is exactly how to restore:</p>
+    <ol style="line-height:2.2;padding-left:20px;color:#333;font-size:14px;">
+        <li>Open the backup <code>.xlsx</code> file — it has 5 sheets: <strong>Stock, Purchases, Sales, Due Payments, Trade Dues.</strong></li>
+        <li>Restore in this exact order to avoid errors:
+            <strong>Purchases → Stock → Sales → Due Payments → Trade Dues.</strong></li>
+        <li>For each sheet: go to that sheet in Excel, save it as a new <code>.xlsx</code> file,
+            then upload it below with the matching Import Type.</li>
+        <li><strong>Do not rename or delete any column headers</strong> — the system reads them exactly.</li>
+        <li>You can also upload the full backup file directly — the system will auto-detect the header row.</li>
+    </ol>
+    <p style="color:#888;font-size:12px;margin-top:6px;">
+        💡 Tip: If a row fails to import, it will be listed below as an error and skipped — other rows are not affected.
+    </p>
+</div>
+
+<!-- IMPORT FORM -->
+<div class="card">
+    <h3>📤 Upload File to Import</h3>
+
+    {% if message %}
+    <div style="padding:12px;border-radius:6px;margin-bottom:16px;
+        {% if 'Successfully' in message %}background:#e0ffe0;border:1px solid #0a0;color:#060;
+        {% else %}background:#ffe0e0;border:1px solid #f00;color:#c00;{% endif %}">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    {% if errors %}
+    <div style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;margin-bottom:16px;">
+        <strong>⚠️ {{ errors|length }} row(s) had errors and were skipped:</strong>
+        <ul style="margin:8px 0 0 16px;">
+            {% for e in errors %}<li style="font-size:13px;color:#555;">{{ e }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-grid" style="margin-bottom:16px;">
+            <div>
+                <label><strong>Import Type</strong></label>
+                <select name="import_type" id="import_type_sel" required onchange="showGuide()">
+                    <option value="">-- Select what you are importing --</option>
+                    <option value="stock">Stock (current items in shop)</option>
+                    <option value="purchase">Purchase History</option>
+                    <option value="sale">Sale History</option>
+                    <option value="payments">Due Payments</option>
+                    <option value="trade_dues">Trade Dues</option>
+                </select>
+            </div>
+            <div>
+                <label><strong>File (.csv or .xlsx)</strong></label>
+                <input type="file" name="file" accept=".csv,.xlsx,.xls" required>
+            </div>
+        </div>
+
+        <!-- Dynamic column guide -->
+        <div id="col_guide" style="display:none;background:#f5f5f5;border-radius:6px;padding:14px;margin-bottom:16px;font-size:13px;">
+            <strong>Required columns for selected import type:</strong>
+            <div id="col_detail" style="margin-top:8px;font-family:monospace;color:#333;line-height:1.8;"></div>
+            <p style="margin-top:8px;color:#888;font-size:12px;">Date format: <code>YYYY-MM-DD</code> &nbsp;|&nbsp; Column names are case-insensitive</p>
+        </div>
+
+        <button type="submit" class="btn">📥 Import Now</button>
+    </form>
+</div>
+
+<!-- COLUMN REFERENCE TABLE -->
+<div class="card">
+    <h3>📋 Column Reference</h3>
+    <div class="table-wrapper">
+    <table>
+        <tr style="background:#8B0000;color:white;">
+            <th style="padding:8px 12px;">Import Type</th>
+            <th style="padding:8px 12px;">Required Columns (exact names)</th>
+            <th style="padding:8px 12px;">Notes</th>
+        </tr>
+        <tr style="background:#f9f9f9;">
+            <td style="padding:8px 12px;font-weight:bold;">Stock</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:12px;">ID, ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, PURCHASE_DATE</td>
+            <td style="padding:8px 12px;font-size:12px;">Duplicate IDs are skipped automatically</td>
+        </tr>
+        <tr>
+            <td style="padding:8px 12px;font-weight:bold;">Purchase History</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:12px;">ID, ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, SELLER, PHONE, PURCHASE_DATE</td>
+            <td style="padding:8px 12px;font-size:12px;">Duplicate IDs are skipped automatically</td>
+        </tr>
+        <tr style="background:#f9f9f9;">
+            <td style="padding:8px 12px;font-weight:bold;">Sale History</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:12px;">ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE</td>
+            <td style="padding:8px 12px;font-size:12px;">ID column ignored — new IDs assigned automatically</td>
+        </tr>
+        <tr>
+            <td style="padding:8px 12px;font-weight:bold;">Due Payments</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:12px;">SALE_ID, BUYER_NAME, BUYER_PHONE, TOTAL_AMOUNT, PAID_AMOUNT, DUE_AMOUNT, SALE_DATE, LAST_PAYMENT_DATE, STATUS</td>
+            <td style="padding:8px 12px;font-size:12px;">STATUS must be Pending or Cleared. Duplicate SALE_IDs skipped.</td>
+        </tr>
+        <tr style="background:#f9f9f9;">
+            <td style="padding:8px 12px;font-weight:bold;">Trade Dues</td>
+            <td style="padding:8px 12px;font-family:monospace;font-size:12px;">SELLER_NAME, SELLER_PHONE, MATERIAL, AGREED_WEIGHT, GIVEN_WEIGHT, DUE_WEIGHT, PURCHASE_DATE, LAST_UPDATE, STATUS</td>
+            <td style="padding:8px 12px;font-size:12px;">STATUS must be Pending or Cleared</td>
+        </tr>
+    </table>
+    </div>
+</div>
+
+<script>
+var GUIDES = {
+    "stock":      "ID, ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, PURCHASE_DATE",
+    "purchase":   "ID, ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, SELLER, PHONE, PURCHASE_DATE",
+    "sale":       "ITEM, MATERIAL, CATEGORY, WEIGHT, PURITY, BUYER, PHONE, SALE_DATE",
+    "payments":   "SALE_ID, BUYER_NAME, BUYER_PHONE, TOTAL_AMOUNT, PAID_AMOUNT, DUE_AMOUNT, SALE_DATE, LAST_PAYMENT_DATE, STATUS",
+    "trade_dues": "SELLER_NAME, SELLER_PHONE, MATERIAL, AGREED_WEIGHT, GIVEN_WEIGHT, DUE_WEIGHT, PURCHASE_DATE, LAST_UPDATE, STATUS"
+};
+function showGuide() {
+    var val   = document.getElementById('import_type_sel').value;
+    var guide = document.getElementById('col_guide');
+    var detail= document.getElementById('col_detail');
+    if (val && GUIDES[val]) {
+        detail.textContent = GUIDES[val];
+        guide.style.display = 'block';
+    } else {
+        guide.style.display = 'none';
+    }
+}
+</script>
+
+{% endblock %}

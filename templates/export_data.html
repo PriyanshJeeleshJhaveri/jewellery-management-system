@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📤 Export Data</div>
+
+<div class="card">
+    <h3>📦 Stock & Transaction Data</h3>
+    <p style="color:#666;margin-bottom:16px;">Export any table as a CSV file. These files can be re-imported via the Import Data page.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a href="/export/stock"      class="btn">📦 Export Current Stock</a>
+        <a href="/export/purchase"   class="btn">📥 Export Purchase History</a>
+        <a href="/export/sale"       class="btn">💰 Export Sales History</a>
+        <a href="/export/payments"   class="btn">💳 Export Due Payments</a>
+        <a href="/export/trade_dues" class="btn">🔄 Export Trade Dues</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📊 Reports</h3>
+    <p style="color:#666;margin-bottom:16px;">Export filtered reports by time period.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a href="/export_report/daily"   class="btn">📅 Today's Report</a>
+        <a href="/export_report/monthly" class="btn">🗓️ This Month's Report</a>
+        <a href="/export_report/yearly"  class="btn">📆 This Year's Report</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>💾 Full Backup</h3>
+    <p style="color:#666;margin-bottom:16px;">
+        Downloads all 5 tables as a single Excel file with separate sheets.
+        Use this to take a full backup. The file can be used to restore data via the Import Data page.
+    </p>
+    {% if session_role == 'admin' %}
+    <a href="/backup_db" class="btn" style="background:#2a7a2a;">💾 Download Full Backup (.xlsx)</a>
+    {% else %}
+    <p style="color:#888;font-size:13px;">⚠️ Full backup is available to admins only. Contact your admin to download a backup.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

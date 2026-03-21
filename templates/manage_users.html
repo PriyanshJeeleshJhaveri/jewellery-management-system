@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">👥 Manage Users</div>
+
+{% if error %}
+<div style="background:#ffe0e0;border:1px solid #f00;padding:10px;border-radius:6px;margin-bottom:16px;color:#c00;">⚠️ {{ error }}</div>
+{% endif %}
+
+<div class="card">
+    <h3>Add New User</h3>
+    <form method="POST" action="/add_user">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-grid" style="margin-bottom:16px;">
+            <div>
+                <label><strong>Username</strong></label>
+                <input type="text" name="username" required placeholder="Enter username">
+            </div>
+            <div>
+                <label><strong>Password</strong></label>
+                <input type="password" name="password" required minlength="6" placeholder="Min 6 characters">
+            </div>
+            <div>
+                <label><strong>Role</strong></label>
+                <select name="role">
+                    <option value="user">User (standard access)</option>
+                    <option value="admin">Admin (full access)</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn">➕ Add User</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Existing Users</h3>
+    <div class="table-wrapper">
+    <table>
+        <tr><th>ID</th><th>Username</th><th>Role</th><th>Reset Password</th><th>Delete</th></tr>
+        {% for u in users %}
+        <tr>
+            <td>{{ u.ID }}</td>
+            <td>{{ u.USERNAME }}</td>
+            <td><span style="{% if u.ROLE=='admin' %}color:#8B0000;font-weight:bold;{% endif %}">{{ u.ROLE }}</span></td>
+            <td>
+                <form method="POST" action="/reset_user_password/{{ u.ID }}" style="display:flex;gap:6px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="password" name="new_password" minlength="6" placeholder="New password" style="width:140px;">
+                    <button type="submit">🔄 Reset</button>
+                </form>
+            </td>
+            <td>
+                {% if u.USERNAME != session.get('username') %}
+                <form method="POST" action="/delete_user/{{ u.ID }}"
+                      onsubmit="return confirm('Delete user {{ u.USERNAME }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" style="color:red;">🗑️ Delete</button>
+                </form>
+                {% else %}
+                <span style="color:#aaa;">— (you)</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+</div>
+{% endblock %}

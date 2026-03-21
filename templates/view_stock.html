@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📦 Current Stock</div>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <span style="color:#666;">
+            Showing <strong>{{ ((page-1)*per_page)+1 }}–{{ [page*per_page, total]|min }}</strong>
+            of <strong>{{ total }}</strong> items
+        </span>
+        <a href="/export_stock" class="btn">⬇ Export Stock CSV</a>
+    </div>
+
+    {% if stock %}
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight (g)</th>
+            <th>Purity</th>
+            <th>Purchase Date</th>
+            <th>Actions</th>
+        </tr>
+        {% for s in stock %}
+        <tr>
+            <td>{{ s.ID }}</td>
+            <td>{{ s.ITEM }}</td>
+            <td>{{ s.MATERIAL }}</td>
+            <td>{{ s.CATEGORY }}</td>
+            <td>{{ s.WEIGHT }}</td>
+            <td>{{ s.PURITY }}</td>
+            <td>{{ s.PURCHASE_DATE }}</td>
+            <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                <a href="/edit_stock/{{ s.ID }}" class="btn">✏️ Edit</a>
+                <form method="POST" action="/delete_stock/{{ s.ID }}"
+                      onsubmit="return confirm('Delete {{ s.ITEM }} (ID: {{ s.ID }})?\nThis cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+
+    <!-- Pagination controls -->
+    {% if total_pages > 1 %}
+    <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:20px; flex-wrap:wrap;">
+
+        {% if page > 1 %}
+        <a href="/view_stock?page=1" class="btn">« First</a>
+        <a href="/view_stock?page={{ page - 1 }}" class="btn">‹ Prev</a>
+        {% endif %}
+
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+            {% if p == page %}
+            <span style="padding:6px 12px; background:#8B0000; color:white; border-radius:4px; font-weight:bold;">{{ p }}</span>
+            {% else %}
+            <a href="/view_stock?page={{ p }}" class="btn">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a href="/view_stock?page={{ page + 1 }}" class="btn">Next ›</a>
+        <a href="/view_stock?page={{ total_pages }}" class="btn">Last »</a>
+        {% endif %}
+
+    </div>
+    <div style="text-align:center; color:#888; font-size:13px; margin-top:8px;">
+        Page {{ page }} of {{ total_pages }}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p style="color:#888; text-align:center; padding:20px;">No stock available.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

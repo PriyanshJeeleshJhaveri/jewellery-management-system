@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">📋 Audit Log</div>
+<div class="card">
+    <p style="color:#666;margin-bottom:12px;">Last 500 actions. Most recent first.</p>
+    {% if logs %}
+    <div class="table-wrapper">
+    <table>
+        <tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr>
+        {% for log in logs %}
+        <tr>
+            <td style="white-space:nowrap;font-size:12px;">{{ log.TIMESTAMP[:19].replace('T',' ') }}</td>
+            <td><strong>{{ log.USERNAME }}</strong></td>
+            <td>
+                {% if log.ACTION in ('DELETE_SALE','DELETE_STOCK','DELETE_USER') %}
+                <span style="color:red;font-weight:bold;">{{ log.ACTION }}</span>
+                {% elif log.ACTION == 'SALE' %}
+                <span style="color:green;font-weight:bold;">{{ log.ACTION }}</span>
+                {% else %}
+                {{ log.ACTION }}
+                {% endif %}
+            </td>
+            <td style="font-size:13px;">{{ log.DETAIL }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% else %}
+    <p style="color:#888;text-align:center;padding:20px;">No actions recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

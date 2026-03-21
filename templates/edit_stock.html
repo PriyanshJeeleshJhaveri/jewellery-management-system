@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>✏️ Edit Stock Item</h2>
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+
+<div class="form-card">
+    <p style="color:#888; margin-bottom:20px;">Stock ID: <strong>{{ item.ID }}</strong> &nbsp;|&nbsp; Added: <strong>{{ item.PURCHASE_DATE }}</strong></p>
+
+    <form method="POST" action="/edit_stock/{{ item.ID }}">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Item Name</label>
+                <input type="text" name="item" value="{{ item.ITEM }}" required>
+            </div>
+            <div class="form-group">
+                <label>Material</label>
+                <select name="material" required>
+                    <option value="GOLD"    {% if item.MATERIAL == 'GOLD'    %}selected{% endif %}>Gold</option>
+                    <option value="SILVER"  {% if item.MATERIAL == 'SILVER'  %}selected{% endif %}>Silver</option>
+                    <option value="DIAMOND" {% if item.MATERIAL == 'DIAMOND' %}selected{% endif %}>Diamond</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" required>
+                    <option value="MALE"     {% if item.CATEGORY == 'MALE'     %}selected{% endif %}>Male</option>
+                    <option value="FEMALE"   {% if item.CATEGORY == 'FEMALE'   %}selected{% endif %}>Female</option>
+                    <option value="CHILDREN" {% if item.CATEGORY == 'CHILDREN' %}selected{% endif %}>Children</option>
+                    <option value="UTENSIL"  {% if item.CATEGORY == 'UTENSIL'  %}selected{% endif %}>Utensil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Weight (g)</label>
+                <input type="number" name="weight" value="{{ item.WEIGHT }}" step="0.001" min="0.001" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Purity</label>
+                <input type="number" name="purity" value="{{ item.PURITY }}" step="0.1" min="0.1" max="999" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <button type="submit">💾 Save Changes</button>
+            <a href="/view_stock" class="btn">✕ Cancel</a>
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}

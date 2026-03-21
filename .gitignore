@@ -1,0 +1,19 @@
+# Database — never commit real data
+jewellery.db
+jewellery.db-shm
+jewellery.db-wal
+
+# Generated files
+invoices/
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+# OS
+.DS_Store
+Thumbs.db
