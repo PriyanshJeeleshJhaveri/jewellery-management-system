@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">📊 Reports</div>
+
+<div class="card">
+    <form method="POST" class="report-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+                <label><strong>Report Type</strong></label>
+                <select name="type" id="report_type_sel" onchange="toggleCustom()">
+                    <option value="daily"   {% if report_type=='daily'   %}selected{% endif %}>Today</option>
+                    <option value="monthly" {% if report_type=='monthly' %}selected{% endif %}>This Month</option>
+                    <option value="yearly"  {% if report_type=='yearly'  %}selected{% endif %}>This Year</option>
+                    <option value="custom"  {% if report_type=='custom'  %}selected{% endif %}>Custom Date Range</option>
+                </select>
+            </div>
+            {% set custom_display = "flex" if report_type=='custom' else "none" %}
+    <div id="custom_dates" style="display:{{ custom_display }};gap:10px;flex-wrap:wrap;">
+                <div>
+                    <label><strong>From</strong></label>
+                    <input type="date" name="date_from" value="{{ date_from }}">
+                </div>
+                <div>
+                    <label><strong>To</strong></label>
+                    <input type="date" name="date_to" value="{{ date_to }}">
+                </div>
+            </div>
+            <button type="submit" class="btn">View Report</button>
+        </div>
+    </form>
+</div>
+
+<!-- SUMMARY TOTALS -->
+<div class="stats" style="margin-bottom:0;">
+    <div class="stat-card">📥 Purchases<br><span>{{ purchase|length }} items</span><br><small>{{ total_pur_weight }} g total</small></div>
+    <div class="stat-card">📤 Sales<br><span>{{ sales|length }} items</span><br><small>{{ total_sale_weight }} g total</small></div>
+    <div class="stat-card" style="border-left:4px solid #2a7a2a;">💰 Revenue (Before GST)<br><span>Rs. {{ "%.2f"|format(sale_total_rs) }}</span></div>
+    <div class="stat-card" style="border-left:4px solid #8B0000;">💰 Revenue (After GST 3%)<br><span>Rs. {{ "%.2f"|format(sale_total_gst) }}</span></div>
+</div>
+
+<!-- MATERIAL BREAKDOWN -->
+{% if material_breakdown %}
+<div class="card">
+    <h3>📦 Sales Breakdown by Material</h3>
+    <div class="table-wrapper"><table>
+        <tr><th>Material</th><th>Items Sold</th><th>Total Weight (g)</th><th>Revenue (Before GST)</th><th>Revenue (After GST 3%)</th></tr>
+        {% for row in material_breakdown %}
+        <tr>
+            <td><strong>{{ row.material }}</strong></td>
+            <td>{{ row.count }}</td>
+            <td>{{ "%.3f"|format(row.weight) }}</td>
+            <td>Rs. {{ "%.2f"|format(row.revenue) }}</td>
+            <td>Rs. {{ "%.2f"|format(row.revenue * 1.03) }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>📥 Purchase Report ({{ purchase|length }} items — {{ total_pur_weight }} g)</h3>
+    {% if purchase %}
+    <div class="table-wrapper"><table>
+        <tr><th>Tag ID</th><th>Item</th><th>Material</th><th>Category</th><th>G.Wt (g)</th><th>L.Wt (g)</th><th>N.Wt (g)</th><th>Seller</th><th>Date</th></tr>
+        {% for p in purchase %}
+        <tr>
+            <td>{{ p.ID }}</td><td>{{ p.ITEM }}</td><td>{{ p.MATERIAL }}</td>
+            <td>{{ p.CATEGORY }}</td>
+            <td>{{ "%.3f"|format(p.G_WEIGHT) }}</td>
+            <td>{{ "%.3f"|format(p.L_WEIGHT) }}</td>
+            <td>{{ "%.3f"|format(p.N_WEIGHT) }}</td>
+            <td>{{ p.SELLER }}</td><td>{{ p.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+    {% else %}<p>No purchase records found.</p>{% endif %}
+</div>
+
+<div class="card">
+    <h3>📤 Sales Report ({{ sales|length }} items — Rs. {{ "%.2f"|format(sale_total_gst) }} after GST)</h3>
+    {% if sales %}
+    <div class="table-wrapper"><table>
+        <tr><th>Item</th><th>Material</th><th>Category</th><th>Weight (g)</th><th>Buyer</th><th>Date</th></tr>
+        {% for s in sales %}
+        <tr>
+            <td>{{ s.ITEM }}</td><td>{{ s.MATERIAL }}</td><td>{{ s.CATEGORY }}</td>
+            <td>{{ s.WEIGHT }}</td><td>{{ s.BUYER }}</td><td>{{ s.SALE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+    {% else %}<p>No sales records found.</p>{% endif %}
+</div>
+
+<div class="card">
+    <a href="/export_report/{{ report_type }}{% if report_type=='custom' %}?date_from={{ date_from }}&amp;date_to={{ date_to }}{% endif %}" class="btn">
+        ⬇ Export {{ report_type|capitalize }} Report as XLSX
+    </a>
+</div>
+
+<script>
+function toggleCustom() {
+    var val = document.getElementById('report_type_sel').value;
+    document.getElementById('custom_dates').style.display = (val === 'custom') ? 'flex' : 'none';
+}
+</script>
+{% endblock %}

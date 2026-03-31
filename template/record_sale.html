@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">🛒 Record Sale</div>
+
+<!-- ADD ITEM TO CART FORM -->
+<div class="card">
+    <h3>Add Item to Cart</h3>
+
+    <!-- LIVE STOCK SEARCH BOX -->
+    <div style="margin-bottom:16px;">
+        <label><strong>🔍 Search Stock by Name / ID / Material</strong></label>
+        <input type="text" id="stockSearch" autocomplete="off"
+               placeholder="Type item name, tag ID, or material..."
+               style="width:100%;padding:9px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;margin-top:4px;">
+        <div id="searchResults" style="
+            display:none; border:1px solid #ccc; border-top:none;
+            border-radius:0 0 4px 4px; background:white;
+            max-height:260px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.12);
+            position:relative; z-index:100;"></div>
+        <small style="color:#888;">Click a result to auto-fill the Stock ID below.</small>
+    </div>
+
+    <form method="POST" action="/add_to_cart" id="addToCartForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-grid" style="margin-bottom:16px;">
+
+            <div>
+                <label><strong>Stock ID</strong></label>
+                <input type="text" name="stock_id" id="stock_id_input" required
+                       placeholder="Enter Tag ID or use search above"
+                       oninput="checkIfDiamond(this.value)">
+            </div>
+
+            <div>
+                <label><strong>HSN/SAC Code</strong></label>
+                <input type="text" name="hsn" required
+                       placeholder="e.g. 7113">
+            </div>
+
+            <!-- Rate per gram — shown for Gold/Silver (non-MRP) and Diamond -->
+            <div id="rate_per_gram_div">
+                <label><strong>Rate per Gram (Rs)</strong> <span id="rate_hint" style="font-weight:normal;color:#c00;font-size:12px;"></span></label>
+                <input type="number" name="rate_per_gram" id="rate_per_gram_input" step="0.01" min="0"
+                       placeholder="e.g. 9000">
+            </div>
+
+            <!-- Flat diamond price — shown only for Diamond -->
+            <div id="flat_price_div" style="display:none;">
+                <label><strong>Diamond Stone Price (Rs)</strong> <span style="font-weight:normal;color:#888;font-size:12px;">(flat price for stones only)</span></label>
+                <input type="number" name="flat_price" id="flat_price_input" step="0.01" min="0"
+                       placeholder="e.g. 12000 — leave 0 if no stones">
+            </div>
+
+            <!-- MRP notice — shown only for Silver items with MRP set -->
+            <div id="mrp_notice_div" style="display:none;">
+                <label><strong>MRP Price (Rs)</strong></label>
+                <div id="mrp_notice_box" style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;color:#856404;font-size:13px;">
+                    ⚡ This item is sold at MRP — rate/g and making charges not required.
+                    <br><strong>MRP: Rs. <span id="mrp_display_val">—</span></strong>
+                </div>
+            </div>
+
+            <div id="making_charges_div">
+                <label><strong>Making Charges (Rs)</strong></label>
+                <input type="number" name="making_charges" id="making_charges_input" step="0.01" min="0" value="0">
+            </div>
+
+        </div>
+        <button type="submit" class="btn">➕ Add to Cart</button>
+    </form>
+</div>
+
+<!-- CART TABLE -->
+{% if cart %}
+<div class="card">
+    <h3>🛒 Cart ({{ cart|length }} item{{ 's' if cart|length > 1 else '' }})</h3>
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Stock ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Weight (g)</th>
+            <th>Purity</th>
+            <th>Cent</th>
+            <th>HSN</th>
+            <th>Rate/g (Rs)</th>
+            <th>Diamond Price (Rs)</th>
+            <th>Making (Rs)</th>
+            <th>Item Total (Rs)</th>
+            <th>Remove</th>
+        </tr>
+        {% for i in cart %}
+        <tr>
+            <td>{{ i.stock_id }}</td>
+            <td>{{ i.item }}</td>
+            <td>{{ i.material }}</td>
+            <td>{{ i.category }}</td>
+            <td>{{ i.weight }}</td>
+            <td>{{ i.purity if i.purity is not none else '—' }}</td>
+            <td>{{ i.cent if i.cent is not none else '—' }}</td>
+            <td>{{ i.hsn }}</td>
+            <td>{% if i.is_mrp %}<span style="color:#2a7a2a;font-weight:bold;">MRP</span>{% elif i.rate_per_gram and i.rate_per_gram > 0 %}{{ i.rate_per_gram }}{% else %}—{% endif %}</td>
+            <td>{{ i.flat_price if (i.flat_price is not none and i.flat_price > 0) else '—' }}</td>
+            <td>{% if i.is_mrp %}—{% else %}{{ i.making_charges }}{% endif %}</td>
+            <td><strong>Rs. {{ i.item_total }}</strong></td>
+            <td>
+                <a href="/remove_from_cart/{{ i.stock_id }}"
+                   style="color:red;font-weight:bold;"
+                   onclick="return confirm(&#39;Remove this item from cart?&#39;)">✕</a>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr style="background:#f9f9f9;">
+            <td colspan="11" style="text-align:right;font-weight:bold;">Total Before GST:</td>
+            <td><strong>Rs. {{ total }}</strong></td>
+            <td></td>
+        </tr>
+    </table>
+    </div>
+</div>
+
+<!-- COMPLETE SALE FORM — submits into hidden modal for review -->
+<div class="card">
+    <h3>✅ Complete Sale</h3>
+    <form id="saleForm">
+        <div class="form-grid" style="margin-bottom:16px;">
+
+            <div>
+                <label><strong>Buyer Name</strong></label>
+                <input type="text" id="f_buyer" required placeholder="Enter buyer name">
+            </div>
+
+            <div>
+                <label><strong>Buyer Phone</strong></label>
+                <input type="tel" id="f_phone" required placeholder="10 digit mobile number" maxlength="10" pattern="[0-9]{10}">
+            </div>
+
+            <div>
+                <label><strong>Buyer Address</strong></label>
+                <input type="text" id="f_address" placeholder="e.g. 12 MG Road, Ahmedabad">
+            </div>
+
+            <div>
+                <label><strong>Buyer GSTIN (optional)</strong></label>
+                <input type="text" id="f_gstin" placeholder="Leave blank if not registered">
+            </div>
+
+            <div>
+                <label><strong>Payment Method</strong></label>
+                <select id="f_payment_method">
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Cheque">Cheque</option>
+                </select>
+            </div>
+
+            <div>
+                <label><strong>Invoice Date</strong></label>
+                <input type="date" id="f_sale_date" value="{{ today }}">
+            </div>
+
+            <div>
+                <label><strong>Payment Type</strong></label>
+                <select id="f_payment_type">
+                    <option value="full">Full Payment</option>
+                </select>
+            </div>
+
+        </div>
+
+        <!-- This triggers the confirmation modal, not a direct submit -->
+        <button type="button" class="btn" onclick="openConfirm()">
+            🔍 Review & Confirm Sale
+        </button>
+    </form>
+</div>
+
+<!-- CONFIRMATION MODAL -->
+<div id="confirmModal" style="
+    display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.55); z-index:9999; overflow-y:auto;">
+
+    <div style="
+        background:white; margin:40px auto; max-width:620px; border-radius:8px;
+        padding:28px; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+
+        <h2 style="color:#8B0000; margin-bottom:20px;">🧾 Confirm Sale — Final Review</h2>
+
+        <!-- Buyer summary -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:14px;">
+            <tr style="background:#f5f5f5;">
+                <td style="padding:7px 10px; font-weight:bold; width:40%;">Buyer Name</td>
+                <td id="c_buyer" style="padding:7px 10px;"></td>
+            </tr>
+            <tr>
+                <td style="padding:7px 10px; font-weight:bold;">Phone</td>
+                <td id="c_phone" style="padding:7px 10px;"></td>
+            </tr>
+            <tr style="background:#f5f5f5;">
+                <td style="padding:7px 10px; font-weight:bold;">Address</td>
+                <td id="c_address" style="padding:7px 10px;"></td>
+            </tr>
+            <tr>
+                <td style="padding:7px 10px; font-weight:bold;">GSTIN</td>
+                <td id="c_gstin" style="padding:7px 10px;"></td>
+            </tr>
+            <tr style="background:#f5f5f5;">
+                <td style="padding:7px 10px; font-weight:bold;">Payment Method</td>
+                <td id="c_payment_method" style="padding:7px 10px;"></td>
+            </tr>
+            <tr>
+                <td style="padding:7px 10px; font-weight:bold;">Invoice Date</td>
+                <td id="c_sale_date" style="padding:7px 10px;"></td>
+            </tr>
+
+
+        </table>
+
+        <!-- Items summary -->
+        <h4 style="margin-bottom:8px; color:#333;">Items in this sale:</h4>
+        <div style="overflow-x:auto; margin-bottom:16px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <tr style="background:#8B0000; color:white;">
+                <th style="padding:6px 8px; text-align:left;">Item</th>
+                <th style="padding:6px 8px;">Material</th>
+                <th style="padding:6px 8px;">Weight</th>
+                <th style="padding:6px 8px; text-align:right;">Total (Rs)</th>
+            </tr>
+            {% for i in cart %}
+            <tr style="{% if loop.index is odd %}background:#f9f9f9;{% endif %}">
+                <td style="padding:6px 8px;">{{ i.item }}</td>
+                <td style="padding:6px 8px; text-align:center;">{{ i.material }}</td>
+                <td style="padding:6px 8px; text-align:center;">{{ i.weight }}g</td>
+                <td style="padding:6px 8px; text-align:right;">{{ i.item_total }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:#fff3cd; font-weight:bold;">
+                <td colspan="3" style="padding:7px 8px; text-align:right;">Total Before GST:</td>
+                <td style="padding:7px 8px; text-align:right;">Rs. {{ total }}</td>
+            </tr>
+            <tr style="background:#8B0000; color:white; font-weight:bold;">
+                <td colspan="3" style="padding:7px 8px; text-align:right;">Total After GST (3%):</td>
+                <td style="padding:7px 8px; text-align:right;">Rs. {{ "%.2f"|format(total * 1.03) }}</td>
+            </tr>
+        </table>
+        </div>
+
+        <p style="color:#c00; font-weight:bold; font-size:14px; margin-bottom:20px;">
+            ⚠️ Once confirmed, this sale is recorded and items are removed from stock.
+        </p>
+
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button onclick="closeConfirm()" style="
+                padding:10px 20px; background:#888; color:white;
+                border:none; border-radius:4px; cursor:pointer; font-size:14px;">
+                ← Go Back & Edit
+            </button>
+
+            <!-- The real form that actually submits -->
+            <form method="POST" action="/complete_sale" id="realSaleForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="buyer" maxlength="100" id="r_buyer">
+                <input type="hidden" name="phone" maxlength="15" id="r_phone">
+                <input type="hidden" name="buyer_address" maxlength="200" id="r_address">
+                <input type="hidden" name="buyer_gstin" maxlength="20" id="r_gstin">
+                <input type="hidden" name="payment_method" id="r_payment_method">
+                <input type="hidden" name="sale_date" id="r_sale_date">
+                <input type="hidden" name="payment_type" value="full" id="r_payment_type">
+                <input type="hidden" name="paid_amount" value="0" id="r_paid_amount">
+                <button type="submit" id="finalSubmitBtn" class="btn" style="background:#2a7a2a; font-size:14px; padding:10px 22px;"
+                        onclick="
+    var btn = this;
+    btn.disabled = true;
+    btn.innerText = '⏳ Processing... Please wait';
+    btn.form.submit();
+    // PDF download does not navigate away — redirect to fresh record_sale after delay
+    setTimeout(function() {
+        window.location.href = '/record_sale';
+    }, 3500);
+">
+                    💾 Yes, Complete Sale & Download Invoice
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <p style="color:#888;text-align:center;padding:20px;">
+        Cart is empty. Add items using the form above.
+        <br><br>
+        <a href="/view_stock" class="btn">📦 View Stock to find Stock IDs</a>
+    </p>
+</div>
+{% endif %}
+
+<script>
+function openConfirm() {
+    var buyer  = document.getElementById('f_buyer').value.trim();
+    var phone  = document.getElementById('f_phone').value.trim();
+    var address = document.getElementById('f_address').value.trim();
+    var gstin  = document.getElementById('f_gstin').value.trim();
+    var method = document.getElementById('f_payment_method').value;
+    var date   = document.getElementById('f_sale_date').value;
+    var ptype  = 'full';
+    var paid   = '0';
+
+    if (!buyer) { alert('Buyer name is required.'); return; }
+    phone = phone.replace(/\D/g, '');
+    if (phone.length !== 10) { alert('Phone must be exactly 10 digits.'); return; }
+    // Populate confirmation modal
+    document.getElementById('c_buyer').textContent         = buyer;
+    document.getElementById('c_phone').textContent         = phone;
+    document.getElementById('c_address').textContent       = address || '—';
+    document.getElementById('c_gstin').textContent         = gstin || '—';
+    document.getElementById('c_payment_method').textContent = method;
+    document.getElementById('c_sale_date').textContent     = date;
+
+
+    // Populate hidden real form
+    document.getElementById('r_buyer').value          = buyer;
+    document.getElementById('r_phone').value          = phone;
+    document.getElementById('r_address').value        = address;
+    document.getElementById('r_gstin').value          = gstin;
+    document.getElementById('r_payment_method').value = method;
+    document.getElementById('r_sale_date').value      = date;
+    document.getElementById('r_payment_type').value   = ptype;
+    document.getElementById('r_paid_amount').value    = paid || 0;
+
+    document.getElementById('confirmModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeConfirm() {
+    document.getElementById('confirmModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// ── Diamond / non-diamond field toggle ───────────────────────────
+function setItemMode(material, mrpPrice) {
+    var fpDiv       = document.getElementById('flat_price_div');
+    var fpInput     = document.getElementById('flat_price_input');
+    var rpgDiv      = document.getElementById('rate_per_gram_div');
+    var rpgInput    = document.getElementById('rate_per_gram_input');
+    var mcDiv       = document.getElementById('making_charges_div');
+    var mcInput     = document.getElementById('making_charges_input');
+    var mrpDiv      = document.getElementById('mrp_notice_div');
+    var mrpVal      = document.getElementById('mrp_display_val');
+    var rateHint    = document.getElementById('rate_hint');
+
+    var isMRP     = (material === 'SILVER' && mrpPrice && parseFloat(mrpPrice) > 0);
+    var isDiamond = (material === 'DIAMOND');
+
+    if (isMRP) {
+        // MRP Silver: hide rate, making charges; show MRP notice
+        rpgDiv.style.display  = 'none';
+        fpDiv.style.display   = 'none';
+        mcDiv.style.display   = 'none';
+        mrpDiv.style.display  = 'block';
+        mrpVal.textContent    = parseFloat(mrpPrice).toFixed(2);
+        rpgInput.value        = '0';
+        mcInput.value         = '0';
+        fpInput.value         = '0';
+    } else if (isDiamond) {
+        // Diamond: show rate (gold part) + flat stone price
+        rpgDiv.style.display  = 'block';
+        fpDiv.style.display   = 'block';
+        mcDiv.style.display   = 'block';
+        mrpDiv.style.display  = 'none';
+        fpInput.required      = false;
+        rateHint.textContent  = '← enter gold rate per gram for this item';
+    } else {
+        // Normal Gold/Silver: show rate only
+        rpgDiv.style.display  = 'block';
+        fpDiv.style.display   = 'none';
+        mcDiv.style.display   = 'block';
+        mrpDiv.style.display  = 'none';
+        rpgInput.required     = true;
+        fpInput.required      = false;
+        fpInput.value         = '';
+        rateHint.textContent  = '';
+    }
+}
+// Default: normal mode on load
+setItemMode('', null);
+
+// Check material when user manually types a stock ID (debounced)
+var itemCheckTimer;
+function checkIfDiamond(val) {
+    clearTimeout(itemCheckTimer);
+    val = val.trim();
+    if (!val) return;
+    itemCheckTimer = setTimeout(function() {
+        fetch('/api/stock_search?q=' + encodeURIComponent(val))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.results && data.results.length > 0) {
+                    var match = data.results.find(function(r) {
+                        return r.ID.toLowerCase() === val.toLowerCase();
+                    }) || data.results[0];
+                    setItemMode(match.MATERIAL, match.MRP_PRICE);
+                }
+            })
+            .catch(function() {});
+    }, 400);
+}
+</script>
+
+<script>
+// ── Live Stock Search ─────────────────────────────────────────────
+(function() {
+    var searchBox    = document.getElementById('stockSearch');
+    var resultsBox   = document.getElementById('searchResults');
+    var stockIdInput = document.getElementById('stock_id_input');
+    var debounceTimer;
+
+    if (!searchBox) return;
+
+    searchBox.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        var q = this.value.trim();
+        if (q.length < 1) {
+            resultsBox.style.display = 'none';
+            resultsBox.innerHTML = '';
+            return;
+        }
+        debounceTimer = setTimeout(function() {
+            fetch('/api/stock_search?q=' + encodeURIComponent(q))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.results || data.results.length === 0) {
+                        resultsBox.innerHTML = '<div style="padding:12px;color:#888;font-size:13px;">No items found.</div>';
+                        resultsBox.style.display = 'block';
+                        return;
+                    }
+                    var html = '';
+                    data.results.forEach(function(item) {
+                        var isMRP = (item.MATERIAL === 'SILVER' && item.MRP_PRICE && parseFloat(item.MRP_PRICE) > 0);
+                        html += '<div class="search-result-row" data-id="' + item.ID + '" data-material="' + item.MATERIAL + '" data-mrp="' + (item.MRP_PRICE || '') + '" style="'
+                            + 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #f0f0f0;'
+                            + 'font-size:13px; transition:background 0.15s;">'
+                            + '<strong>' + item.ITEM + '</strong>'
+                            + ' <span style="color:#8B0000;font-weight:bold;">[' + item.ID + ']</span>'
+                            + ' &nbsp;|&nbsp; ' + item.MATERIAL
+                            + ' &nbsp;|&nbsp; ' + item.N_WEIGHT + 'g'
+                            + ' &nbsp;|&nbsp; Purity: ' + (item.PURITY || '—')
+                            + (isMRP ? ' &nbsp;|&nbsp; <span style="color:#2a7a2a;font-weight:bold;">MRP: Rs.' + parseFloat(item.MRP_PRICE).toFixed(2) + '</span>' : '')
+                            + (item.MATERIAL === 'DIAMOND' && item.CENT ? ' &nbsp;|&nbsp; <span style="color:#c00;">Cent: ' + item.CENT + '</span>' : '')
+                            + ' &nbsp;|&nbsp; <span style="color:#555;">' + item.CATEGORY + '</span>'
+                            + '</div>';
+                    });
+                    resultsBox.innerHTML = html;
+                    resultsBox.style.display = 'block';
+
+                    // Add hover highlight via JS event listeners (avoids inline attribute quote issues)
+                    resultsBox.querySelectorAll('.search-result-row').forEach(function(row) {
+                        row.addEventListener('mouseover', function() { this.style.background = '#fff3cd'; });
+                        row.addEventListener('mouseout',  function() { this.style.background = 'white'; });
+                    });
+
+                    // Click to select
+                    resultsBox.querySelectorAll('.search-result-row').forEach(function(row) {
+                        row.addEventListener('click', function() {
+                            var id  = this.getAttribute('data-id');
+                            var mat = this.getAttribute('data-material');
+                            var mrp = this.getAttribute('data-mrp');
+                            stockIdInput.value = id;
+                            searchBox.value    = this.querySelector('strong').textContent
+                                                + ' [' + id + ']';
+                            resultsBox.style.display = 'none';
+                            setItemMode(mat, mrp);
+                            // Focus next field (HSN)
+                            var hsn = document.querySelector('input[name="hsn"]');
+                            if (hsn) hsn.focus();
+                        });
+                    });
+                })
+                .catch(function() {
+                    resultsBox.style.display = 'none';
+                });
+        }, 280);
+    });
+
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchBox.contains(e.target) && !resultsBox.contains(e.target)) {
+            resultsBox.style.display = 'none';
+        }
+    });
+
+    // Keyboard navigation
+    searchBox.addEventListener('keydown', function(e) {
+        var rows = resultsBox.querySelectorAll('.search-result-row');
+        var active = resultsBox.querySelector('.active-row');
+        var idx = -1;
+        rows.forEach(function(r, i) { if (r === active) idx = i; });
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (active) active.classList.remove('active-row');
+            idx = (idx + 1) % rows.length;
+            rows[idx].classList.add('active-row');
+            rows[idx].style.background = '#fff3cd';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (active) active.classList.remove('active-row');
+            idx = (idx - 1 + rows.length) % rows.length;
+            rows[idx].classList.add('active-row');
+            rows[idx].style.background = '#fff3cd';
+        } else if (e.key === 'Enter' && active) {
+            e.preventDefault();
+            active.click();
+        } else if (e.key === 'Escape') {
+            resultsBox.style.display = 'none';
+        }
+    });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📥 Add Purchase</div>
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+
+<!-- ADD ITEM TO CART -->
+<div class="card">
+    <h3>Add Item to Cart</h3>
+    <form method="POST" action="/add_to_pcart">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-grid" style="margin-bottom:16px;">
+            <div>
+                <label><strong>Tag ID</strong></label>
+                <input type="text" name="tag_id" maxlength="50" required placeholder="e.g. E/001, P001">
+            </div>
+            <div>
+                <label><strong>Item Name</strong></label>
+                <input type="text" name="item" maxlength="100" required placeholder="e.g. Ring, Necklace">
+            </div>
+            <div>
+                <label><strong>Material</strong></label>
+                <select name="material" id="material_select" required onchange="onMaterialChange()">
+                    <option value="GOLD">Gold</option>
+                    <option value="SILVER">Silver</option>
+                    <option value="DIAMOND">Diamond</option>
+                </select>
+            </div>
+            <div>
+                <label><strong>Category</strong></label>
+                <input type="text" name="category" list="category_suggestions"
+                       maxlength="50" required placeholder="e.g. MALE, FEMALE, UTENSIL or custom"
+                       style="text-transform:uppercase;"
+                       oninput="this.value=this.value.toUpperCase()">
+                <datalist id="category_suggestions">
+                    <option value="MALE">
+                    <option value="FEMALE">
+                    <option value="CHILDREN">
+                    <option value="UTENSIL">
+                    <option value="UNISEX">
+                    <option value="ANTIQUE">
+                    <option value="RELIGIOUS">
+                    <option value="GIFTING">
+                </datalist>
+            </div>
+            <div>
+                <label><strong>G. Weight (g)</strong></label>
+                <input type="number" name="g_weight" id="g_weight" step="0.001" min="0" required
+                       placeholder="Gross weight (0 allowed for MRP silver)" oninput="calcNWeight()">
+            </div>
+            <div>
+                <label><strong>L. Weight (g)</strong></label>
+                <input type="number" name="l_weight" id="l_weight" step="0.001" min="0" value="0"
+                       placeholder="Less weight (deduction)" oninput="calcNWeight()">
+            </div>
+            <div>
+                <label><strong>N. Weight (g)</strong></label>
+                <input type="number" name="n_weight" id="n_weight" step="0.001"
+                       placeholder="Net weight (auto)" readonly
+                       style="background:#f0f0f0;color:#555;">
+            </div>
+            <div id="purity_field">
+                <label><strong>Purity</strong> <span id="purity_label_hint" style="font-weight:normal;color:#888;"></span></label>
+                <input type="number" name="purity" id="purity_input" step="0.1" min="0.1" max="999" placeholder="e.g. 18, 22, 91.6">
+            </div>
+            <!-- Cent: only for Diamond -->
+            <div id="cent_field" style="display:none;">
+                <label><strong>Cent</strong></label>
+                <input type="number" name="cent" id="cent_input" step="0.01" min="0.01" placeholder="e.g. 0.50, 1.25">
+            </div>
+            <!-- MRP Price: only for Silver -->
+            <div id="mrp_field" style="display:none;">
+                <label><strong>MRP Price (₹)</strong></label>
+                <input type="number" name="mrp_price" id="mrp_input" step="0.01" min="0" placeholder="MRP if sold at fixed price">
+            </div>
+        </div>
+        <button type="submit">➕ Add to Cart</button>
+    </form>
+</div>
+
+<!-- CART TABLE -->
+{% if pcart %}
+<div class="card">
+    <h3>🛒 Cart ({{ pcart|length }} item{{ 's' if pcart|length > 1 else '' }})</h3>
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Tag ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>G.Wt (g)</th>
+            <th>L.Wt (g)</th>
+            <th>N.Wt (g)</th>
+            <th>Purity</th>
+            <th>Cent</th>
+            <th>MRP (₹)</th>
+            <th>Remove</th>
+        </tr>
+        {% for i in pcart %}
+        <tr>
+            <td><strong>{{ i.tag_id }}</strong></td>
+            <td>{{ i.item }}</td>
+            <td>{{ i.material }}</td>
+            <td>{{ i.category }}</td>
+            <td>{{ i.g_weight }}</td>
+            <td>{{ i.l_weight }}</td>
+            <td>{{ i.n_weight }}</td>
+            <td>{{ i.purity if i.purity is not none else '—' }}</td>
+            <td>{{ i.cent if i.cent is not none else '—' }}</td>
+            <td>{{ i.mrp_price if i.mrp_price is not none else '—' }}</td>
+            <td>
+                <a href="/remove_from_pcart/{{ i.tag_id }}"
+                   style="color:red;font-weight:bold;"
+                   onclick="return confirm(&#39;Remove this item from cart?&#39;)">✕</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+</div>
+
+<!-- COMPLETE PURCHASE FORM -->
+<div class="card">
+    <h3>✅ Complete Purchase</h3>
+    <form method="POST" action="/complete_purchase">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="form-grid" style="margin-bottom:16px;">
+            <div>
+                <label><strong>Seller Name</strong></label>
+                <input type="text" name="seller" maxlength="100" required placeholder="Enter seller name">
+            </div>
+            <div>
+                <label><strong>Seller Phone</strong></label>
+                <input type="tel" name="phone" maxlength="15" pattern="[0-9]{10}"
+                       title="Phone number must be exactly 10 digits" required
+                       placeholder="10 digit mobile number">
+            </div>
+            <div>
+                <label><strong>Purchase Date</strong></label>
+                <input type="date" name="purchase_date" value="{{ today }}">
+            </div>
+            <div>
+                <label><strong>Payment Mode</strong></label>
+                <select name="payment_mode" id="payment_mode" onchange="togglePaymentMode()">
+                    <option value="cash">Cash</option>
+                    <option value="trade">Trade</option>
+                    <option value="mixed">Mixed (Trade + Cash)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- CASH AMOUNT — shown only for mixed -->
+        <div id="cash_section" style="display:none;">
+            <div class="form-grid" style="margin-bottom:16px;">
+                <div>
+                    <label><strong>Cash Amount (Rs)</strong></label>
+                    <input type="number" name="cash_amount" step="0.01" min="0"
+                           placeholder="Cash paid to seller">
+                </div>
+            </div>
+        </div>
+
+        <!-- TRADE ITEMS — shown for trade and mixed -->
+        <div id="trade_section" style="display:none;">
+            <h4 style="margin-bottom:12px;">🔄 Trade Items Given to Seller</h4>
+            <div id="trade_items_container">
+                <div class="form-grid trade-item-row" style="margin-bottom:12px;">
+                    <div>
+                        <label><strong>Material</strong></label>
+                        <select name="trade_material">
+                            <option value="GOLD">Gold</option>
+                            <option value="SILVER">Silver</option>
+                            <option value="DIAMOND">Diamond</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Agreed Weight (g)</strong></label>
+                        <input type="number" name="trade_agreed_weight" step="0.001" min="0.001"
+                               placeholder="Total agreed to give">
+                    </div>
+                    <div>
+                        <label><strong>Given Now (g)</strong></label>
+                        <input type="number" name="trade_given_weight" step="0.001" min="0"
+                               placeholder="Actually given today">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn" onclick="addTradeRow()" style="margin-bottom:16px;">
+                ➕ Add Another Trade Item
+            </button>
+        </div>
+
+        <button type="submit"
+                onclick="return confirm(&#39;Save all {{ pcart|length }} item(s) to stock?&#39;)">
+            💾 Complete Purchase
+        </button>
+
+    </form>
+</div>
+
+{% else %}
+<div class="card">
+    <p style="color:#888;text-align:center;padding:20px;">
+        Cart is empty. Add items using the form above.
+    </p>
+</div>
+{% endif %}
+
+<script>
+function togglePaymentMode() {
+    var mode  = document.getElementById('payment_mode').value;
+    var trade = document.getElementById('trade_section');
+    var cash  = document.getElementById('cash_section');
+    trade.style.display = (mode === 'trade' || mode === 'mixed') ? 'block' : 'none';
+    cash.style.display  = (mode === 'mixed') ? 'block' : 'none';
+}
+
+function addTradeRow() {
+    var container = document.getElementById('trade_items_container');
+    var row = document.createElement('div');
+    row.className = 'form-grid trade-item-row';
+    row.style.marginBottom = '12px';
+    row.innerHTML = `
+        <div>
+            <label><strong>Material</strong></label>
+            <select name="trade_material">
+                <option value="GOLD">Gold</option>
+                <option value="SILVER">Silver</option>
+                <option value="DIAMOND">Diamond</option>
+            </select>
+        </div>
+        <div>
+            <label><strong>Agreed Weight (g)</strong></label>
+            <input type="number" name="trade_agreed_weight" step="0.001" min="0.001"
+                   placeholder="Total agreed to give">
+        </div>
+        <div>
+            <label><strong>Given Now (g)</strong></label>
+            <input type="number" name="trade_given_weight" step="0.001" min="0"
+                   placeholder="Actually given today">
+        </div>
+        <div style="padding-top:20px;">
+            <button type="button" onclick="this.closest('.trade-item-row').remove()"
+                    style="background:#e74c3c; color:white;">🗑️ Remove</button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+</script>
+
+<script>
+function onMaterialChange() {
+    var mat        = document.getElementById('material_select').value;
+    var centField  = document.getElementById('cent_field');
+    var mrpField   = document.getElementById('mrp_field');
+    var purityInput = document.getElementById('purity_input');
+    var purityHint  = document.getElementById('purity_label_hint');
+
+    // Diamond: show cent, hide MRP, purity required
+    if (mat === 'DIAMOND') {
+        centField.style.display  = 'block';
+        mrpField.style.display   = 'none';
+        purityInput.required     = true;
+        purityInput.placeholder  = 'e.g. 18, 22, 91.6';
+        purityHint.textContent   = '(required)';
+        document.getElementById('mrp_input').value = '';
+    }
+    // Silver: hide cent, show MRP, purity optional
+    else if (mat === 'SILVER') {
+        centField.style.display  = 'none';
+        mrpField.style.display   = 'block';
+        purityInput.required     = false;
+        purityInput.placeholder  = 'e.g. 92.5 (leave blank if nil)';
+        purityHint.textContent   = '(optional for silver)';
+        document.getElementById('cent_input').value = '';
+        // Show weight hint for MRP silver
+        var gw = document.getElementById('g_weight');
+        if (gw) { gw.placeholder = 'Gross weight (can be 0 for MRP items)'; }
+    }
+    // Gold: hide both, purity required
+    else {
+        centField.style.display  = 'none';
+        mrpField.style.display   = 'none';
+        purityInput.required     = true;
+        purityInput.placeholder  = 'e.g. 18, 22, 91.6';
+        purityHint.textContent   = '(required)';
+        document.getElementById('cent_input').value  = '';
+        document.getElementById('mrp_input').value   = '';
+    }
+}
+// Run once on load to set initial state
+onMaterialChange();
+</script>
+
+<script>
+function calcNWeight() {
+    var g = parseFloat(document.getElementById('g_weight').value) || 0;
+    var l = parseFloat(document.getElementById('l_weight').value) || 0;
+    var n = Math.round((g - l) * 1000) / 1000;
+    document.getElementById('n_weight').value = n > 0 ? n : 0;
+}
+</script>
+{% endblock %}

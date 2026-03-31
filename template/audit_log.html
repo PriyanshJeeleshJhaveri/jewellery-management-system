@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">📋 Audit Log</div>
+<div class="card">
+    <form method="GET" action="/audit_log" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <div>
+            <label style="font-size:13px;font-weight:600;">Search</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="User, action, or detail…" style="min-width:220px;">
+        </div>
+        <button type="submit" class="btn">🔍 Filter</button>
+        {% if q %}
+        <a href="/audit_log" class="btn" style="background:#888;">✕ Clear</a>
+        {% endif %}
+        <span style="color:#666;font-size:13px;align-self:center;">{{ total }} records total</span>
+    </form>
+
+    {% if logs %}
+    <div class="table-wrapper">
+    <table>
+        <tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr>
+        {% for log in logs %}
+        <tr>
+            <td style="white-space:nowrap;font-size:12px;">{{ log.TIMESTAMP[:19].replace('T',' ') }}</td>
+            <td><strong>{{ log.USERNAME }}</strong></td>
+            <td>
+                {% if log.ACTION in ('DELETE_SALE','DELETE_STOCK','DELETE_USER') %}
+                <span style="color:red;font-weight:bold;">{{ log.ACTION }}</span>
+                {% elif log.ACTION == 'SALE' %}
+                <span style="color:green;font-weight:bold;">{{ log.ACTION }}</span>
+                {% elif log.ACTION == 'PURCHASE' %}
+                <span style="color:#0066cc;font-weight:bold;">{{ log.ACTION }}</span>
+                {% else %}
+                {{ log.ACTION }}
+                {% endif %}
+            </td>
+            <td style="font-size:13px;">{{ log.DETAIL }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;">
+        {% if page > 1 %}
+        <a href="/audit_log?page=1&amp;q={{ q }}" class="btn">« First</a>
+        <a href="/audit_log?page={{ page-1 }}&amp;q={{ q }}" class="btn">‹ Prev</a>
+        {% endif %}
+        {% for p in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+            {% if p == page %}
+            <span style="padding:6px 12px;background:#8B0000;color:white;border-radius:4px;font-weight:bold;">{{ p }}</span>
+            {% else %}
+            <a href="/audit_log?page={{ p }}&amp;q={{ q }}" class="btn">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="/audit_log?page={{ page+1 }}&amp;q={{ q }}" class="btn">Next ›</a>
+        <a href="/audit_log?page={{ total_pages }}&amp;q={{ q }}" class="btn">Last »</a>
+        {% endif %}
+    </div>
+    <div style="text-align:center;color:#888;font-size:13px;margin-top:8px;">Page {{ page }} of {{ total_pages }}</div>
+    {% endif %}
+
+    {% else %}
+    <p style="color:#888;text-align:center;padding:20px;">No actions recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

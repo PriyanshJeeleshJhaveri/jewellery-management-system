@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">🧾 View Purchases</div>
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <span style="color:#666;">Showing <strong>{{ ((page-1)*per_page)+1 }}–{{ [page*per_page, total]|min }}</strong> of <strong>{{ total }}</strong> records</span>
+    </div>
+    {% if purchases %}
+    <div class="table-wrapper"><table>
+        <tr><th>Tag ID</th><th>Item</th><th>Material</th><th>Category</th><th>G.Wt (g)</th><th>L.Wt (g)</th><th>N.Wt (g)</th><th>Purity</th><th>Cent</th><th>MRP (₹)</th><th>Seller</th><th>Phone</th><th>Date</th><th>Action</th></tr>
+        {% for p in purchases %}
+        <tr>
+            <td>{{ p.ID }}</td><td>{{ p.ITEM }}</td><td>{{ p.MATERIAL }}</td>
+            <td>{{ p.CATEGORY }}</td>
+            <td>{{ "%.3f"|format(p.G_WEIGHT) }}</td>
+            <td>{{ "%.3f"|format(p.L_WEIGHT) }}</td>
+            <td>{{ "%.3f"|format(p.N_WEIGHT) }}</td>
+            <td>{{ p.PURITY if p.PURITY is not none else '—' }}</td>
+            <td>{{ p.CENT if p.CENT is not none else '—' }}</td>
+            <td>{{ p.MRP_PRICE if p.MRP_PRICE is not none else '—' }}</td>
+            <td>{{ p.SELLER }}</td><td>{{ p.PHONE }}</td><td>{{ p.PURCHASE_DATE }}</td>
+            <td>
+                <form method="POST" action="/delete_purchase/{{ p.ID }}"
+                      onsubmit="return confirm(&#39;Delete purchase record for {{ p.ITEM }}?&#39;)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit">🗑️</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table></div>
+    {% if total_pages > 1 %}
+    <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;">
+        {% if page > 1 %}<a href="/view_purchases?page=1" class="btn">« First</a><a href="/view_purchases?page={{ page-1 }}" class="btn">‹ Prev</a>{% endif %}
+        {% for p in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+            {% if p == page %}<span style="padding:6px 12px;background:#8B0000;color:white;border-radius:4px;font-weight:bold;">{{ p }}</span>
+            {% else %}<a href="/view_purchases?page={{ p }}" class="btn">{{ p }}</a>{% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a href="/view_purchases?page={{ page+1 }}" class="btn">Next ›</a><a href="/view_purchases?page={{ total_pages }}" class="btn">Last »</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}<p>No purchase records.</p>{% endif %}
+</div>
+{% endblock %}

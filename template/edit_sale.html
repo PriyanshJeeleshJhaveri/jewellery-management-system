@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>✏️ Edit Sale Record</h2>
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+
+<div class="form-card">
+    <p style="color:#888;margin-bottom:20px;">Sale ID: <strong>#{{ sale.ID }}</strong> &nbsp;|&nbsp; Item: <strong>{{ sale.ITEM }}</strong> ({{ sale.MATERIAL }})</p>
+    <p style="color:#777;font-size:13px;margin-bottom:20px;">⚠️ Editing only updates buyer info and date. Stock and invoice data remain unchanged.</p>
+
+    <form method="POST" action="/edit_sale/{{ sale.ID }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Buyer Name</label>
+                <input type="text" name="buyer" value="{{ sale.BUYER }}" required maxlength="100">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="text" name="phone" value="{{ sale.PHONE }}" required maxlength="15" placeholder="10 digits">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Buyer Address / State</label>
+                <input type="text" name="buyer_address" value="{{ sale.BUYER_ADDRESS }}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Sale Date</label>
+                <input type="date" name="sale_date" value="{{ sale.SALE_DATE }}" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <button type="submit">💾 Save Changes</button>
+            <a href="/view_sales" class="btn">✕ Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

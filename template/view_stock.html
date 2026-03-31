@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📦 Current Stock</div>
+
+<div class="card">
+    <!-- Search/Filter Bar -->
+    <form method="GET" action="/view_stock" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <div>
+            <label style="font-size:13px;font-weight:600;">Search</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Item, ID, material, category…" style="min-width:220px;">
+        </div>
+        <div>
+            <label style="font-size:13px;font-weight:600;">Material</label>
+            <select name="material">
+                <option value="">All</option>
+                <option value="GOLD"    {% if material_filter=='GOLD'    %}selected{% endif %}>Gold</option>
+                <option value="SILVER"  {% if material_filter=='SILVER'  %}selected{% endif %}>Silver</option>
+                <option value="DIAMOND" {% if material_filter=='DIAMOND' %}selected{% endif %}>Diamond</option>
+            </select>
+        </div>
+        <button type="submit" class="btn">🔍 Filter</button>
+        {% if q or material_filter %}
+        <a href="/view_stock" class="btn" style="background:#888;">✕ Clear</a>
+        {% endif %}
+    </form>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <span style="color:#666;">
+            Showing <strong>{{ ((page-1)*per_page)+1 }}–{{ [page*per_page, total]|min }}</strong>
+            of <strong>{{ total }}</strong> items
+        </span>
+        <a href="/export_stock" class="btn">⬇ Export Stock</a>
+    </div>
+
+    {% if stock %}
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Material</th>
+            <th>Category</th>
+            <th>G.Wt (g)</th>
+            <th>L.Wt (g)</th>
+            <th>N.Wt (g)</th>
+            <th>Purity</th>
+            <th>Cent</th>
+            <th>MRP (₹)</th>
+            <th>Notes</th>
+            <th>Purchase Date</th>
+            <th>Actions</th>
+        </tr>
+        {% for s in stock %}
+        <tr>
+            <td><strong>{{ s.ID }}</strong></td>
+            <td>{{ s.ITEM }}</td>
+            <td>{{ s.MATERIAL }}</td>
+            <td>{{ s.CATEGORY }}</td>
+            <td>{{ "%.3f"|format(s.G_WEIGHT) }}</td>
+            <td>{{ "%.3f"|format(s.L_WEIGHT) }}</td>
+            <td><strong>{{ "%.3f"|format(s.N_WEIGHT) }}</strong></td>
+            <td>{{ s.PURITY if s.PURITY is not none else '—' }}</td>
+            <td>{{ s.CENT if s.CENT is not none else '—' }}</td>
+            <td>{{ s.MRP_PRICE if s.MRP_PRICE is not none else '—' }}</td>
+            <td style="max-width:150px;font-size:12px;color:#555;">{{ s.NOTES or '—' }}</td>
+            <td>{{ s.PURCHASE_DATE }}</td>
+            <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                <a href="/edit_stock/{{ s.ID }}" class="btn">✏️ Edit</a>
+                <form method="POST" action="/delete_stock/{{ s.ID }}"
+                      onsubmit="return confirm(&#39;Delete {{ s.ITEM }} (ID: {{ s.ID }})?\nThis cannot be undone.&#39;);">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit">🗑️ Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:20px; flex-wrap:wrap;">
+        {% if page > 1 %}
+        <a href="/view_stock?page=1&amp;q={{ q }}&amp;material={{ material_filter }}" class="btn">« First</a>
+        <a href="/view_stock?page={{ page - 1 }}&amp;q={{ q }}&amp;material={{ material_filter }}" class="btn">‹ Prev</a>
+        {% endif %}
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+            {% if p == page %}
+            <span style="padding:6px 12px; background:#8B0000; color:white; border-radius:4px; font-weight:bold;">{{ p }}</span>
+            {% else %}
+            <a href="/view_stock?page={{ p }}&amp;q={{ q }}&amp;material={{ material_filter }}" class="btn">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="/view_stock?page={{ page + 1 }}&amp;q={{ q }}&amp;material={{ material_filter }}" class="btn">Next ›</a>
+        <a href="/view_stock?page={{ total_pages }}&amp;q={{ q }}&amp;material={{ material_filter }}" class="btn">Last »</a>
+        {% endif %}
+    </div>
+    <div style="text-align:center; color:#888; font-size:13px; margin-top:8px;">
+        Page {{ page }} of {{ total_pages }}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p style="color:#888; text-align:center; padding:20px;">No stock items found.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

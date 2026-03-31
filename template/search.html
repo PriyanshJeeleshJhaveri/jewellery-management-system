@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-title">🔍 Search</div>
+
+<div class="card">
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-grid" style="margin-bottom:16px;">
+            <div>
+                <label><strong>Search Value</strong></label>
+                <input type="text" name="value" value="{{ search_value }}" placeholder="Enter name, ID, material..." required>
+            </div>
+            <div>
+                <label><strong>Search In</strong></label>
+                <select name="scope">
+                    <option value="all"       {% if search_scope=='all'       %}selected{% endif %}>All (Stock + Sales + Purchases)</option>
+                    <option value="stock"     {% if search_scope=='stock'     %}selected{% endif %}>Current Stock Only</option>
+                    <option value="sales"     {% if search_scope=='sales'     %}selected{% endif %}>Sales History Only</option>
+                    <option value="purchases" {% if search_scope=='purchases' %}selected{% endif %}>Purchase History Only</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn">🔍 Search</button>
+    </form>
+</div>
+
+{% if search_value %}
+
+{% if stock_results %}
+<div class="card">
+    <h3>📦 Current Stock ({{ stock_results|length }} result{{ 's' if stock_results|length != 1 }})</h3>
+    <div class="table-wrapper"><table>
+        <tr><th>ID</th><th>Item</th><th>Material</th><th>Category</th><th>N.Weight (g)</th><th>Purity</th><th>Purchase Date</th></tr>
+        {% for r in stock_results %}
+        <tr>
+            <td>{{ r.ID }}</td><td>{{ r.ITEM }}</td><td>{{ r.MATERIAL }}</td>
+            <td>{{ r.CATEGORY }}</td><td>{{ "%.3f"|format(r.N_WEIGHT) }}</td><td>{{ r.PURITY }}</td>
+            <td>{{ r.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+</div>
+{% elif search_scope in ('all','stock') %}
+<div class="card"><p style="color:#888;">No results in current stock.</p></div>
+{% endif %}
+
+{% if sale_results %}
+<div class="card">
+    <h3>💰 Sales History ({{ sale_results|length }} result{{ 's' if sale_results|length != 1 }})</h3>
+    <div class="table-wrapper"><table>
+        <tr><th>Sale ID</th><th>Item</th><th>Material</th><th>Category</th><th>Weight</th><th>Buyer</th><th>Phone</th><th>Sale Date</th></tr>
+        {% for r in sale_results %}
+        <tr>
+            <td>{{ r.ID }}</td><td>{{ r.ITEM }}</td><td>{{ r.MATERIAL }}</td>
+            <td>{{ r.CATEGORY }}</td><td>{{ r.WEIGHT }}</td><td>{{ r.BUYER }}</td>
+            <td>{{ r.PHONE }}</td><td>{{ r.SALE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+</div>
+{% elif search_scope in ('all','sales') %}
+<div class="card"><p style="color:#888;">No results in sales history.</p></div>
+{% endif %}
+
+{% if purchase_results %}
+<div class="card">
+    <h3>🧾 Purchase History ({{ purchase_results|length }} result{{ 's' if purchase_results|length != 1 }})</h3>
+    <div class="table-wrapper"><table>
+        <tr><th>Tag ID</th><th>Item</th><th>Material</th><th>Category</th><th>N.Weight (g)</th><th>Seller</th><th>Phone</th><th>Purchase Date</th></tr>
+        {% for r in purchase_results %}
+        <tr>
+            <td>{{ r.ID }}</td><td>{{ r.ITEM }}</td><td>{{ r.MATERIAL }}</td>
+            <td>{{ r.CATEGORY }}</td><td>{{ "%.3f"|format(r.N_WEIGHT) }}</td><td>{{ r.SELLER }}</td>
+            <td>{{ r.PHONE }}</td><td>{{ r.PURCHASE_DATE }}</td>
+        </tr>
+        {% endfor %}
+    </table></div>
+</div>
+{% elif search_scope in ('all','purchases') %}
+<div class="card"><p style="color:#888;">No results in purchase history.</p></div>
+{% endif %}
+
+{% if not stock_results and not sale_results and not purchase_results %}
+<div class="card">
+    <p style="color:#888;text-align:center;padding:20px;">No results found for "<strong>{{ search_value }}</strong>".</p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

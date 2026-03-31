@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>✏️ Edit Stock Item</h2>
+
+{% if error %}
+<div class="error-msg">{{ error }}</div>
+{% endif %}
+
+<div class="form-card">
+    <p style="color:#888; margin-bottom:20px;">Stock ID: <strong>{{ item.ID }}</strong> &nbsp;|&nbsp; Added: <strong>{{ item.PURCHASE_DATE }}</strong></p>
+
+    <form method="POST" action="/edit_stock/{{ item.ID }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Item Name</label>
+                <input type="text" name="item" value="{{ item.ITEM }}" required>
+            </div>
+            <div class="form-group">
+                <label>Material</label>
+                <select name="material" id="edit_material" required onchange="onEditMaterialChange()">
+                    <option value="GOLD"    {% if item.MATERIAL == 'GOLD'    %}selected{% endif %}>Gold</option>
+                    <option value="SILVER"  {% if item.MATERIAL == 'SILVER'  %}selected{% endif %}>Silver</option>
+                    <option value="DIAMOND" {% if item.MATERIAL == 'DIAMOND' %}selected{% endif %}>Diamond</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" required>
+                    <option value="MALE"     {% if item.CATEGORY == 'MALE'     %}selected{% endif %}>Male</option>
+                    <option value="FEMALE"   {% if item.CATEGORY == 'FEMALE'   %}selected{% endif %}>Female</option>
+                    <option value="CHILDREN" {% if item.CATEGORY == 'CHILDREN' %}selected{% endif %}>Children</option>
+                    <option value="UTENSIL"  {% if item.CATEGORY == 'UTENSIL'  %}selected{% endif %}>Utensil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Purity <span id="edit_purity_hint" style="font-weight:normal;color:#888;"></span></label>
+                <input type="number" name="purity" id="edit_purity_input"
+                       value="{{ item.PURITY if item.PURITY is not none else '' }}"
+                       step="0.1" min="0.1" max="999" placeholder="e.g. 18, 22, 91.6">
+            </div>
+        </div>
+
+        <!-- Cent: Diamond only -->
+        <div class="form-row" id="edit_cent_row" style="display:none;">
+            <div class="form-group">
+                <label>Cent</label>
+                <input type="number" name="cent" id="edit_cent_input"
+                       value="{{ item.CENT if item.CENT is not none else '' }}"
+                       step="0.01" min="0.01" placeholder="e.g. 0.50, 1.25">
+            </div>
+        </div>
+
+        <!-- MRP: Silver only -->
+        <div class="form-row" id="edit_mrp_row" style="display:none;">
+            <div class="form-group">
+                <label>MRP Price (₹)</label>
+                <input type="number" name="mrp_price" id="edit_mrp_input"
+                       value="{{ item.MRP_PRICE if item.MRP_PRICE is not none else '' }}"
+                       step="0.01" min="0" placeholder="MRP if sold at fixed price">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Gross Weight (g)</label>
+                <input type="number" name="g_weight" id="g_weight" value="{{ item.G_WEIGHT }}" step="0.001" min="0.001" required oninput="calcNet()">
+            </div>
+            <div class="form-group">
+                <label>Less Weight (g)</label>
+                <input type="number" name="l_weight" id="l_weight" value="{{ item.L_WEIGHT }}" step="0.001" min="0" oninput="calcNet()">
+            </div>
+            <div class="form-group">
+                <label>Net Weight (g) <small style="color:#888;">(auto)</small></label>
+                <input type="text" id="n_weight_display" value="{{ item.N_WEIGHT }}" readonly style="background:#f5f5f5;color:#555;">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex:1;">
+                <label>Notes <small style="color:#888;">(hallmark, condition, stone details…)</small></label>
+                <textarea name="notes" rows="2" maxlength="300" placeholder="e.g. Hallmark: BIS 916, Stone: Ruby 2ct, Condition: Minor scratch on clasp">{{ item.NOTES or '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <button type="submit">💾 Save Changes</button>
+            <a href="/view_stock" class="btn">✕ Cancel</a>
+        </div>
+
+    </form>
+</div>
+
+<script>
+function onEditMaterialChange() {
+    var mat        = document.getElementById('edit_material').value;
+    var centRow    = document.getElementById('edit_cent_row');
+    var mrpRow     = document.getElementById('edit_mrp_row');
+    var purityInput = document.getElementById('edit_purity_input');
+    var purityHint  = document.getElementById('edit_purity_hint');
+
+    if (mat === 'DIAMOND') {
+        centRow.style.display   = 'block';
+        mrpRow.style.display    = 'none';
+        purityInput.required    = true;
+        purityHint.textContent  = '(required)';
+        document.getElementById('edit_mrp_input').value = '';
+    } else if (mat === 'SILVER') {
+        centRow.style.display   = 'none';
+        mrpRow.style.display    = 'block';
+        purityInput.required    = false;
+        purityHint.textContent  = '(optional for silver)';
+        document.getElementById('edit_cent_input').value = '';
+    } else {
+        centRow.style.display   = 'none';
+        mrpRow.style.display    = 'none';
+        purityInput.required    = true;
+        purityHint.textContent  = '(required)';
+        document.getElementById('edit_cent_input').value = '';
+        document.getElementById('edit_mrp_input').value  = '';
+    }
+}
+onEditMaterialChange();
+
+function calcNet() {
+    var g = parseFloat(document.getElementById('g_weight').value) || 0;
+    var l = parseFloat(document.getElementById('l_weight').value) || 0;
+    document.getElementById('n_weight_display').value = Math.max(0, g - l).toFixed(3);
+}
+</script>
+
+{% endblock %}

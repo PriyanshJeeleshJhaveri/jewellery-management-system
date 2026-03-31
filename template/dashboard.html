@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">📊 Dashboard</div>
+
+<div class="stats">
+    <div class="stat-card">💛 Gold Stock<br><span>{{ "%.3f"|format(gold_weight) }} g</span></div>
+    <div class="stat-card">🤍 Silver Stock<br><span>{{ "%.3f"|format(silver_weight) }} g</span></div>
+    <div class="stat-card">💎 Diamond Items<br><span>{{ diamond_count }}</span></div>
+    <div class="stat-card">📦 Total Stock<br><span>{{ total_stock }} items</span></div>
+    {% set dues_style = "border-left:4px solid red;" if pending_dues > 0 else "" %}
+    <div class="stat-card" style="{{ dues_style }}">
+        💳 Pending Dues<br>
+        <span>{{ pending_dues }}</span>
+    </div>
+    {% set trades_style = "border-left:4px solid orange;" if pending_trades > 0 else "" %}
+    <div class="stat-card" style="{{ trades_style }}">
+        🔄 Trade Pending<br>
+        <span>{{ pending_trades }}</span>
+    </div>
+    <!-- DB size monitoring -->
+    {% if db_size_pct >= 80 %}{% set db_style = "border-left:4px solid red;background:#fff0f0;" %}
+    {% elif db_size_pct >= 50 %}{% set db_style = "border-left:4px solid orange;" %}
+    {% else %}{% set db_style = "border-left:4px solid #2a7a2a;" %}{% endif %}
+    <div class="stat-card" style="{{ db_style }}">
+        🗄️ DB Size<br>
+        <span>{{ db_size_mb }} MB</span>
+        <br>
+        <small style="font-size:12px;color:
+            {% if db_size_pct >= 80 %}red
+            {% elif db_size_pct >= 50 %}orange
+            {% else %}#2a7a2a{% endif %};">
+            {{ db_size_pct }}% of 512 MB
+            {% if db_size_pct >= 80 %} ⚠️ Almost full!{% endif %}
+        </small>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📈 Quick Actions</h3>
+    <p>Use the sidebar to manage purchases, sales, stock, and reports.</p>
+</div>
+<div class="card">
+    <h3>🔎 Search Stock</h3>
+    <p>Find items by ID, item name, material, category, purity or date.</p>
+    <a href="/search" class="btn">Go to Search</a>
+</div>
+
+{% endblock %}

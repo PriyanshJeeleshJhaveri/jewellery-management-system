@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-title">💳 Due Payments</div>
+
+<div class="card">
+    <!-- Search Bar -->
+    <form method="GET" action="/due_payments" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <div>
+            <label style="font-size:13px;font-weight:600;">Search Buyer</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="Name or phone…" style="min-width:200px;">
+        </div>
+        <div>
+            <label style="font-size:13px;font-weight:600;">Status</label>
+            <select name="status">
+                <option value="">All</option>
+                <option value="Pending" {% if status_filter=='Pending' %}selected{% endif %}>Pending</option>
+                <option value="Cleared" {% if status_filter=='Cleared' %}selected{% endif %}>Cleared</option>
+            </select>
+        </div>
+        <button type="submit" class="btn">🔍 Filter</button>
+        {% if q or status_filter %}
+        <a href="/due_payments" class="btn" style="background:#888;">✕ Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Summary -->
+    {% if total_pending > 0 %}
+    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px 16px;margin-bottom:14px;font-size:14px;">
+        ⚠️ <strong>{{ pending_count }}</strong> pending dues totalling <strong>Rs. {{ "%.2f"|format(total_pending) }}</strong>
+    </div>
+    {% endif %}
+
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Sale ID</th>
+            <th>Buyer</th>
+            <th>Phone</th>
+            <th>Sale Date</th>
+            <th>Total (Rs)</th>
+            <th>Paid (Rs)</th>
+            <th>Due (Rs)</th>
+            <th>Last Payment</th>
+            <th>Status</th>
+            <th>Add Payment</th>
+        </tr>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.SALE_ID }}</td>
+            <td>{{ p.BUYER_NAME }}</td>
+            <td>{{ p.BUYER_PHONE }}</td>
+            <td>{{ p.SALE_DATE }}</td>
+            <td>{{ "%.2f"|format(p.TOTAL_AMOUNT) }}</td>
+            <td>{{ "%.2f"|format(p.PAID_AMOUNT) }}</td>
+            {% set due_color = "red" if p.DUE_AMOUNT > 0 else "green" %}
+            <td><strong style="color:{{ due_color }};">{{ "%.2f"|format(p.DUE_AMOUNT) }}</strong></td>
+            <td>{{ p.LAST_PAYMENT_DATE }}</td>
+            <td>
+                {% if p.STATUS == 'Cleared' %}
+                <span style="color:green;font-weight:bold;">✅ Cleared</span>
+                {% else %}
+                <span style="color:red;font-weight:bold;">⏳ Pending</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.STATUS == 'Pending' %}
+                <form method="POST" action="/add_payment/{{ p.ID }}" style="display:flex;gap:6px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="number" name="amount" step="0.01" min="0.01" max="{{ p.DUE_AMOUNT }}"
+                           placeholder="Amount" style="width:100px;">
+                    <button type="submit">➕ Pay</button>
+                </form>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        {% if not payments %}
+        <tr><td colspan="10" style="text-align:center;color:#888;padding:20px;">No records found.</td></tr>
+        {% endif %}
+    </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;">
+        {% if page > 1 %}
+        <a href="/due_payments?page=1&amp;q={{ q }}&amp;status={{ status_filter }}" class="btn">« First</a>
+        <a href="/due_payments?page={{ page-1 }}&amp;q={{ q }}&amp;status={{ status_filter }}" class="btn">‹ Prev</a>
+        {% endif %}
+        {% for p in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+            {% if p == page %}
+            <span style="padding:6px 12px;background:#8B0000;color:white;border-radius:4px;font-weight:bold;">{{ p }}</span>
+            {% else %}
+            <a href="/due_payments?page={{ p }}&amp;q={{ q }}&amp;status={{ status_filter }}" class="btn">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="/due_payments?page={{ page+1 }}&amp;q={{ q }}&amp;status={{ status_filter }}" class="btn">Next ›</a>
+        <a href="/due_payments?page={{ total_pages }}&amp;q={{ q }}&amp;status={{ status_filter }}" class="btn">Last »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
