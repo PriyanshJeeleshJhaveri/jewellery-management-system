@@ -14,9 +14,10 @@
             <label style="font-size:13px;font-weight:600;">Material</label>
             <select name="material">
                 <option value="">All</option>
-                <option value="GOLD"    {% if material_filter=='GOLD'    %}selected{% endif %}>Gold</option>
-                <option value="SILVER"  {% if material_filter=='SILVER'  %}selected{% endif %}>Silver</option>
-                <option value="DIAMOND" {% if material_filter=='DIAMOND' %}selected{% endif %}>Diamond</option>
+                <option value="GOLD"       {% if material_filter=='GOLD'       %}selected{% endif %}>Gold</option>
+                <option value="SILVER"     {% if material_filter=='SILVER'     %}selected{% endif %}>Silver</option>
+                <option value="DIAMOND"    {% if material_filter=='DIAMOND'    %}selected{% endif %}>Diamond</option>
+                <option value="IMITATION"  {% if material_filter=='IMITATION'  %}selected{% endif %}>Imitation Jewellery</option>
             </select>
         </div>
         <button type="submit" class="btn">🔍 Filter</button>

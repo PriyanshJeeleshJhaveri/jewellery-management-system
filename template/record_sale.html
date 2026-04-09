@@ -353,7 +353,7 @@ function setItemMode(material, mrpPrice) {
     var mrpVal      = document.getElementById('mrp_display_val');
     var rateHint    = document.getElementById('rate_hint');
 
-    var isMRP     = (material === 'SILVER' && mrpPrice && parseFloat(mrpPrice) > 0);
+    var isMRP     = ((material === 'SILVER' || material === 'IMITATION') && mrpPrice && parseFloat(mrpPrice) > 0);
     var isDiamond = (material === 'DIAMOND');
 
     if (isMRP) {
@@ -440,7 +440,7 @@ function checkIfDiamond(val) {
                     }
                     var html = '';
                     data.results.forEach(function(item) {
-                        var isMRP = (item.MATERIAL === 'SILVER' && item.MRP_PRICE && parseFloat(item.MRP_PRICE) > 0);
+                        var isMRP = ((item.MATERIAL === 'SILVER' || item.MATERIAL === 'IMITATION') && item.MRP_PRICE && parseFloat(item.MRP_PRICE) > 0);
                         html += '<div class="search-result-row" data-id="' + item.ID + '" data-material="' + item.MATERIAL + '" data-mrp="' + (item.MRP_PRICE || '') + '" style="'
                             + 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #f0f0f0;'
                             + 'font-size:13px; transition:background 0.15s;">'

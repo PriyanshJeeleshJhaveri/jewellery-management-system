@@ -21,9 +21,10 @@
             <div class="form-group">
                 <label>Material</label>
                 <select name="material" id="edit_material" required onchange="onEditMaterialChange()">
-                    <option value="GOLD"    {% if item.MATERIAL == 'GOLD'    %}selected{% endif %}>Gold</option>
-                    <option value="SILVER"  {% if item.MATERIAL == 'SILVER'  %}selected{% endif %}>Silver</option>
-                    <option value="DIAMOND" {% if item.MATERIAL == 'DIAMOND' %}selected{% endif %}>Diamond</option>
+                    <option value="GOLD"       {% if item.MATERIAL == 'GOLD'       %}selected{% endif %}>Gold</option>
+                    <option value="SILVER"     {% if item.MATERIAL == 'SILVER'     %}selected{% endif %}>Silver</option>
+                    <option value="DIAMOND"    {% if item.MATERIAL == 'DIAMOND'    %}selected{% endif %}>Diamond</option>
+                    <option value="IMITATION"  {% if item.MATERIAL == 'IMITATION'  %}selected{% endif %}>Imitation Jewellery</option>
                 </select>
             </div>
         </div>
@@ -115,6 +116,12 @@ function onEditMaterialChange() {
         mrpRow.style.display    = 'block';
         purityInput.required    = false;
         purityHint.textContent  = '(optional for silver)';
+        document.getElementById('edit_cent_input').value = '';
+    } else if (mat === 'IMITATION') {
+        centRow.style.display   = 'none';
+        mrpRow.style.display    = 'block';
+        purityInput.required    = false;
+        purityHint.textContent  = '(not applicable)';
         document.getElementById('edit_cent_input').value = '';
     } else {
         centRow.style.display   = 'none';

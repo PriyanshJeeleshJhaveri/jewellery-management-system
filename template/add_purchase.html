@@ -27,6 +27,7 @@
                     <option value="GOLD">Gold</option>
                     <option value="SILVER">Silver</option>
                     <option value="DIAMOND">Diamond</option>
+                    <option value="IMITATION">Imitation Jewellery</option>
                 </select>
             </div>
             <div>
@@ -176,6 +177,7 @@
                             <option value="GOLD">Gold</option>
                             <option value="SILVER">Silver</option>
                             <option value="DIAMOND">Diamond</option>
+                            <option value="IMITATION">Imitation Jewellery</option>
                         </select>
                     </div>
                     <div>
@@ -232,6 +234,7 @@ function addTradeRow() {
                 <option value="GOLD">Gold</option>
                 <option value="SILVER">Silver</option>
                 <option value="DIAMOND">Diamond</option>
+                <option value="IMITATION">Imitation Jewellery</option>
             </select>
         </div>
         <div>
@@ -281,6 +284,18 @@ function onMaterialChange() {
         // Show weight hint for MRP silver
         var gw = document.getElementById('g_weight');
         if (gw) { gw.placeholder = 'Gross weight (can be 0 for MRP items)'; }
+    }
+    // Imitation: hide cent, show MRP, purity not applicable
+    else if (mat === 'IMITATION') {
+        centField.style.display  = 'none';
+        mrpField.style.display   = 'block';
+        purityInput.required     = false;
+        purityInput.placeholder  = 'N/A for imitation jewellery';
+        purityHint.textContent   = '(not applicable)';
+        document.getElementById('cent_input').value = '';
+        // Show weight hint for imitation items
+        var gw = document.getElementById('g_weight');
+        if (gw) { gw.placeholder = 'Gross weight'; }
     }
     // Gold: hide both, purity required
     else {
